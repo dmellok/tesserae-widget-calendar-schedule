@@ -9,9 +9,57 @@ export default function render(shadow, ctx) {
   const data = (ctx && ctx.data) || {};
   const fontFamily = (ctx && ctx.font && ctx.font.family) || "system-ui";
   shadow.innerHTML = layout(data, fontFamily);
+  scheduleAutoFit(shadow);
+}
+
+// Measure the rendered content vs the cell height and set a CSS scale
+// variable so the agenda fills the available space without overflowing.
+// rAF defers measurement until after the first layout pass. ResizeObserver
+// re-fits when the cell resizes (preview iframes, layout editor drags).
+function scheduleAutoFit(shadow) {
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(() => fitToHeight(shadow));
+  } else {
+    fitToHeight(shadow);
+  }
+  if (typeof ResizeObserver === "function") {
+    const frame = shadow.querySelector(".frame");
+    if (frame) {
+      const ro = new ResizeObserver(() => fitToHeight(shadow));
+      ro.observe(frame);
+    }
+  }
+}
+
+// Single-pass shrink-or-grow. Measure base scale, compute target/actual
+// ratio, apply. The 0.6 floor stops the font from getting so small the
+// text becomes illegible; the 1.6 ceiling stops a single-event cell from
+// blowing up the day-number out of proportion.
+function fitToHeight(shadow) {
+  const frame = shadow.querySelector(".frame");
+  const days = shadow.querySelector(".days");
+  if (!frame || !days) return;
+  frame.style.setProperty("--auto-font-scale", "1");
+  const target = frame.clientHeight;
+  const actual = days.scrollHeight;
+  if (!target || !actual) return;
+  let scale = 1;
+  if (actual > target) {
+    scale = Math.max(0.6, target / actual);
+  } else if (actual * 1.6 < target) {
+    scale = Math.min(1.6, (target / actual) * 0.92);
+  }
+  if (Math.abs(scale - 1) > 0.02) {
+    frame.style.setProperty("--auto-font-scale", String(scale));
+  }
 }
 
 function layout(data, fontFamily) {
+  // Honour the documented "12h" / "24h" choices; legacy "auto" (shipped
+  // in v0.1.0) falls back to 12h to match the new default.
+  if (data && data.time_format && String(data.time_format).toLowerCase() === "auto") {
+    data = { ...data, time_format: "12h" };
+  }
   if (data.error) {
     return `
       ${styles(fontFamily)}
@@ -32,7 +80,7 @@ function layout(data, fontFamily) {
       </div>
     `;
   }
-  const tf = (data.time_format || "auto").toLowerCase();
+  const tf = (data.time_format || "12h").toLowerCase();
   return `
     ${styles(fontFamily)}
     <div class="frame">
@@ -108,10 +156,11 @@ function formatTimeParts(iso, format) {
   if (format === "12h") {
     const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
     const suffix = h24 < 12 ? "am" : "pm";
-    const body = m === 0 ? `${h12}` : `${h12}:${pad2(m)}`;
+    // Always show minutes for consistency. "10:00am" not "10am".
+    const body = `${h12}:${pad2(m)}`;
     return { body, suffix, label: `${body}${suffix}` };
   }
-  // 24h (and auto)
+  // 24h
   const label = `${pad2(h24)}:${pad2(m)}`;
   return { body: label, suffix: "", label };
 }
@@ -139,7 +188,11 @@ function styles(fontFamily) {
         overflow: hidden;
         padding: clamp(4px, 1.5cqmin, 14px) clamp(6px, 2cqmin, 18px);
         box-sizing: border-box;
-        font-size: clamp(0.7em, 2.6cqmin, 1.05em);
+        /* Base size is bigger than v0.1.0 (0.85em min, 2.8cqmin mid,
+           1.2em max); the JS auto-fit then multiplies by a scale that
+           expands to fill remaining vertical space or shrinks to
+           prevent overflow. */
+        font-size: calc(clamp(0.85em, 2.8cqmin, 1.2em) * var(--auto-font-scale, 1));
         line-height: 1.3;
       }
       .days {
@@ -150,9 +203,13 @@ function styles(fontFamily) {
       .day {
         display: grid;
         grid-template-columns: clamp(34px, 8cqmin, 60px) 1fr;
-        gap: clamp(6px, 1.8cqmin, 16px);
+        /* em-based gaps + padding so the layout breathes together with
+           the JS auto-fit font scale. When the font grows to fill a
+           tall cell, the vertical rhythm grows with it; when it
+           shrinks, things stay tight. */
+        gap: 0.9em;
         align-items: start;
-        padding: clamp(4px, 1.4cqmin, 10px) 0;
+        padding: 0.5em 0;
         border-top: 1px solid var(--border, #E5E1D6);
       }
       .day:first-child {
@@ -192,13 +249,18 @@ function styles(fontFamily) {
         padding: 0;
         display: flex;
         flex-direction: column;
-        gap: clamp(2px, 0.8cqmin, 6px);
+        /* em-based vertical gap so rows breathe in sync with the
+           auto-fit font scale. */
+        gap: 0.3em;
         min-width: 0;
       }
       .row {
         display: grid;
-        grid-template-columns: clamp(48px, 14cqmin, 120px) clamp(8px, 1.8cqmin, 14px) 1fr;
-        gap: clamp(4px, 1.2cqmin, 10px);
+        /* Time column sized in 'ch' so it scales with the font and
+           fits the longest 12h range (about 13ch). Dot column sized
+           in em so it never crowds the title at high zoom. */
+        grid-template-columns: minmax(6ch, 13ch) 1.2em 1fr;
+        column-gap: 0.7em;
         align-items: baseline;
         min-width: 0;
       }
