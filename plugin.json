@@ -1,0 +1,73 @@
+{
+  "tesserae_compat": "1.x",
+  "name": "Calendar, Schedule",
+  "version": "0.1.0",
+  "kind": "widget",
+  "description": "Google-Calendar-style agenda view. Lists upcoming events grouped by day, with date headers, all-day events at the top of each day, and per-feed colour dots. Pulls from the same calendar_core feeds as the other calendar_* widgets; pick which feeds to include per cell.",
+  "icon": "ph-list-bullets",
+  "supports": {
+    "sizes": ["sm", "md", "lg"]
+  },
+  "cell_options": [
+    {
+      "name": "days_ahead",
+      "type": "select",
+      "label": "Days to show",
+      "default": "5",
+      "choices": [
+        { "value": "1", "label": "Today only" },
+        { "value": "3", "label": "Today + 2 days" },
+        { "value": "5", "label": "Today + 4 days (5 total)" },
+        { "value": "7", "label": "A week" },
+        { "value": "14", "label": "Two weeks" }
+      ]
+    },
+    {
+      "name": "feeds_filter",
+      "type": "string",
+      "label": "Feed IDs (comma-separated; blank = all enabled)",
+      "default": "",
+      "help": "Restrict to specific feeds. Leave blank to include every enabled feed configured in calendar_core."
+    },
+    {
+      "name": "show_location",
+      "type": "boolean",
+      "label": "Show event locations",
+      "default": true
+    },
+    {
+      "name": "show_dot_color",
+      "type": "boolean",
+      "label": "Show per-feed colour dot",
+      "default": true,
+      "help": "Off makes the layout pure typography; useful on 1-bit panels."
+    },
+    {
+      "name": "time_format",
+      "type": "select",
+      "label": "Time format",
+      "default": "auto",
+      "choices": [
+        { "value": "auto", "label": "Auto (24h)" },
+        { "value": "12h", "label": "12-hour (8:00 am)" },
+        { "value": "24h", "label": "24-hour (08:00)" }
+      ]
+    },
+    {
+      "name": "skip_empty_days",
+      "type": "boolean",
+      "label": "Skip days with no events",
+      "default": true
+    },
+    {
+      "name": "max_events_per_day",
+      "type": "number",
+      "label": "Max events per day (0 = all)",
+      "default": 0
+    }
+  ],
+  "render": {
+    "dither": "none",
+    "needs_network": true
+  }
+}
