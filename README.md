@@ -57,4 +57,4 @@ Day grouping happens server-side using your **Settings → Timezone** setting, s
 
 ## Licence
 
-MIT.
+AGPL-3.0-or-later.
