@@ -1,7 +1,7 @@
 {
   "tesserae_compat": "1.x",
   "name": "Calendar, Schedule",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "kind": "widget",
   "description": "Google-Calendar-style agenda view. Lists upcoming events grouped by day, with date headers, all-day events at the top of each day, and per-feed colour dots. Pulls from the same calendar_core feeds as the other calendar_* widgets; pick which feeds to include per cell.",
   "icon": "ph-list-bullets",

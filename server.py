@@ -141,9 +141,32 @@ def fetch(
         edt = _parse_iso(ev.get("end") or s_raw) if ev.get("end") else sdt
         if edt is None:
             edt = sdt
-        # All-day events arrived as YYYY-MM-DD; use the date raw.
-        ev_date = sdt.date() if all_day else _local_date(sdt, tz)
-        if ev_date < today_local or ev_date > last_local_date:
+
+        # Past-event filter for timed events: a lunch 12:00-13:30 stops
+        # showing on the day it happened once 13:30 is gone. Currently-
+        # running events (started, not ended) stay visible. Multi-day
+        # timed events whose final ``edt`` is also past get dropped here.
+        if not all_day and edt < now_local:
+            continue
+
+        # Compute the local-date span. Multi-day events appear on every
+        # day they span, not just the start day. iCal all-day events
+        # use an EXCLUSIVE end-date (a "Fri to Sun" event arrives as
+        # start=Fri end=Mon-00:00), so detect a clean-midnight end that
+        # sits strictly after start and subtract one day.
+        if all_day:
+            start_local_date = sdt.date()
+            end_local_date = edt.date() if edt > sdt else sdt.date()
+            if end_local_date > start_local_date and edt.time() == time(0, 0):
+                end_local_date -= timedelta(days=1)
+        else:
+            start_local_date = _local_date(sdt, tz)
+            end_local_date = _local_date(edt, tz)
+
+        # Past-event filter for all-day events: drop if the whole span
+        # ends before today (yesterday's holiday stops showing as of
+        # midnight rolling over).
+        if all_day and end_local_date < today_local:
             continue
 
         row: dict[str, Any] = {
@@ -157,7 +180,17 @@ def fetch(
         if not all_day:
             row["start_local"] = _local_time_iso(sdt, tz)
             row["end_local"] = _local_time_iso(edt, tz)
-        buckets.setdefault(ev_date, []).append(row)
+
+        # Spread the event across every day in its span that falls
+        # inside the visible window. ``first_day`` is clamped to today
+        # so events that started before now (a long holiday already in
+        # progress) only show forward from today, not retroactively.
+        first_day = max(start_local_date, today_local)
+        last_day = min(end_local_date, last_local_date)
+        current = first_day
+        while current <= last_day:
+            buckets.setdefault(current, []).append(row)
+            current += timedelta(days=1)
 
     days_out: list[dict[str, Any]] = []
     for offset in range(days_ahead):

@@ -9,7 +9,7 @@ logic that's unique to this widget.
 from __future__ import annotations
 
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -23,6 +23,14 @@ def _stub_calendar_core(events: list[dict[str, Any]]) -> MagicMock:
     core.server_module.load_events.return_value = events
     core.data_dir = "/tmp/calendar_core_unused"
     return core
+
+
+def _future_today_iso(hours: float) -> str:
+    """Build an ISO timestamp ``hours`` from now in UTC. Used by tests
+    that need a "today" event whose start / end are still in the future
+    relative to the test run; without this the past-event filter would
+    drop them if the wall clock has advanced past the hardcoded time."""
+    return (datetime.now(UTC) + timedelta(hours=hours)).isoformat()
 
 
 def _stub_app(tz_setting: str = "UTC") -> MagicMock:
@@ -66,8 +74,8 @@ def test_fetch_groups_events_into_today_and_tomorrow() -> None:
     core.server_module.load_events.return_value = [
         {
             "summary": "Stand-up",
-            "start": f"{today.isoformat()}T09:00:00+00:00",
-            "end": f"{today.isoformat()}T09:30:00+00:00",
+            "start": _future_today_iso(hours=1),
+            "end": _future_today_iso(hours=2),
             "all_day": False,
             "feed_name": "Work",
             "feed_colour": "#3366CC",
@@ -99,6 +107,146 @@ def test_fetch_groups_events_into_today_and_tomorrow() -> None:
     assert out["count"] == 2
 
 
+def test_past_timed_event_drops_off_today_after_it_ends() -> None:
+    """A lunch 12:00 to 13:30 stops appearing on today's bucket once
+    13:30 has passed. Without this filter the agenda gets cluttered
+    with events that have already happened."""
+    app, _registry, core, _settings = _stub_app()
+    now = datetime.now(UTC)
+    # Event that started two hours ago and ended one hour ago.
+    started = now - timedelta(hours=2)
+    ended = now - timedelta(hours=1)
+    core.server_module.load_events.return_value = [
+        {
+            "summary": "Lunch with Fred",
+            "start": started.isoformat(),
+            "end": ended.isoformat(),
+            "all_day": False,
+        },
+    ]
+    with patch.object(server, "current_app", app):
+        out = server.fetch(options={"days_ahead": "5"}, settings={}, ctx={})
+    assert out["count"] == 0
+    assert out["days"] == []
+
+
+def test_currently_running_timed_event_still_shows() -> None:
+    """An event that started before now but ends in the future is still
+    happening, so it should still appear on today's bucket."""
+    app, _registry, core, _settings = _stub_app()
+    now = datetime.now(UTC)
+    # Started one hour ago, ends in one hour.
+    started = now - timedelta(hours=1)
+    ending = now + timedelta(hours=1)
+    core.server_module.load_events.return_value = [
+        {
+            "summary": "Conference call",
+            "start": started.isoformat(),
+            "end": ending.isoformat(),
+            "all_day": False,
+        },
+    ]
+    with patch.object(server, "current_app", app):
+        out = server.fetch(options={"days_ahead": "5"}, settings={}, ctx={})
+    assert out["count"] == 1
+    assert out["days"][0]["events"][0]["summary"] == "Conference call"
+
+
+def test_multi_day_all_day_event_spans_every_day_it_covers() -> None:
+    """A holiday from Friday to Sunday (3 days) should land in Friday,
+    Saturday, and Sunday's buckets, not just Friday. iCal carries the
+    end as the exclusive Monday-00:00, which we detect and back off."""
+    app, _registry, core, _settings = _stub_app()
+    today = datetime.now(UTC).date()
+    # Friday-to-Sunday holiday starting today. iCal end is Monday-00:00.
+    fri = today
+    mon_exclusive = today + timedelta(days=3)
+    core.server_module.load_events.return_value = [
+        {
+            "summary": "Long weekend",
+            "start": fri.isoformat(),
+            "end": (mon_exclusive).isoformat(),
+            "all_day": True,
+        },
+    ]
+    with patch.object(server, "current_app", app):
+        out = server.fetch(options={"days_ahead": "5"}, settings={}, ctx={})
+    # Three days of buckets each carrying the same event.
+    summaries_per_day = [[e["summary"] for e in d["events"]] for d in out["days"]]
+    assert summaries_per_day[:3] == [
+        ["Long weekend"],
+        ["Long weekend"],
+        ["Long weekend"],
+    ]
+    assert out["count"] == 3
+
+
+def test_multi_day_timed_event_spans_every_day() -> None:
+    """A conference that starts Friday 09:00 and ends Sunday 17:00
+    should appear on Friday, Saturday, and Sunday in the agenda."""
+    app, _registry, core, _settings = _stub_app()
+    today = datetime.now(UTC).date()
+    fri_start = datetime.combine(today, time(9, 0), tzinfo=UTC)
+    sun_end = datetime.combine(today + timedelta(days=2), time(17, 0), tzinfo=UTC)
+    core.server_module.load_events.return_value = [
+        {
+            "summary": "PyCon",
+            "start": fri_start.isoformat(),
+            "end": sun_end.isoformat(),
+            "all_day": False,
+        },
+    ]
+    with patch.object(server, "current_app", app):
+        out = server.fetch(options={"days_ahead": "5"}, settings={}, ctx={})
+    summaries_per_day = [[e["summary"] for e in d["events"]] for d in out["days"][:3]]
+    assert summaries_per_day == [["PyCon"], ["PyCon"], ["PyCon"]]
+    assert out["count"] == 3
+
+
+def test_fully_past_multi_day_all_day_event_filtered_out() -> None:
+    """A holiday that ended yesterday no longer shows."""
+    app, _registry, core, _settings = _stub_app()
+    today = datetime.now(UTC).date()
+    # Last week's long weekend, fully in the past.
+    past_start = today - timedelta(days=7)
+    past_end_exclusive = today - timedelta(days=4)  # ended Sun, end-exclusive Mon
+    core.server_module.load_events.return_value = [
+        {
+            "summary": "Last week's holiday",
+            "start": past_start.isoformat(),
+            "end": past_end_exclusive.isoformat(),
+            "all_day": True,
+        },
+    ]
+    with patch.object(server, "current_app", app):
+        out = server.fetch(options={"days_ahead": "5"}, settings={}, ctx={})
+    assert out["count"] == 0
+
+
+def test_multi_day_event_in_progress_only_shows_from_today_forward() -> None:
+    """A holiday that started yesterday and ends tomorrow shows on
+    today and tomorrow, not yesterday (yesterday isn't in the window)."""
+    app, _registry, core, _settings = _stub_app()
+    today = datetime.now(UTC).date()
+    yest = today - timedelta(days=1)
+    day_after_tomorrow_exclusive = today + timedelta(days=2)
+    core.server_module.load_events.return_value = [
+        {
+            "summary": "Long weekend in progress",
+            "start": yest.isoformat(),
+            "end": day_after_tomorrow_exclusive.isoformat(),
+            "all_day": True,
+        },
+    ]
+    with patch.object(server, "current_app", app):
+        out = server.fetch(options={"days_ahead": "5"}, settings={}, ctx={})
+    # Today + tomorrow, not yesterday (out of window).
+    assert out["count"] == 2
+    assert out["days"][0]["is_today"] is True
+    assert out["days"][0]["events"][0]["summary"] == "Long weekend in progress"
+    assert out["days"][1]["events"][0]["summary"] == "Long weekend in progress"
+
+
 def test_all_day_events_come_first_within_a_day() -> None:
     """The screenshot shows All-day events at the top of each day; the
     widget must sort them that way regardless of feed order."""
@@ -107,8 +255,8 @@ def test_all_day_events_come_first_within_a_day() -> None:
     core.server_module.load_events.return_value = [
         {
             "summary": "Morning meeting",
-            "start": f"{today.isoformat()}T09:00:00+00:00",
-            "end": f"{today.isoformat()}T10:00:00+00:00",
+            "start": _future_today_iso(1),
+            "end": _future_today_iso(2),
             "all_day": False,
             "feed_name": "Work",
             "feed_colour": "#000",
@@ -134,12 +282,11 @@ def test_show_dot_color_off_omits_colour() -> None:
     """When show_dot_color is False, ``colour`` is None so the client
     renders a blank slot (preserves vertical alignment)."""
     app, _registry, core, _settings = _stub_app()
-    today = datetime.now(UTC).date()
     core.server_module.load_events.return_value = [
         {
             "summary": "x",
-            "start": f"{today.isoformat()}T09:00:00+00:00",
-            "end": f"{today.isoformat()}T10:00:00+00:00",
+            "start": _future_today_iso(1),
+            "end": _future_today_iso(2),
             "all_day": False,
             "feed_name": "y",
             "feed_colour": "#abc",
@@ -156,12 +303,11 @@ def test_show_dot_color_off_omits_colour() -> None:
 
 def test_show_location_off_drops_location_field() -> None:
     app, _registry, core, _settings = _stub_app()
-    today = datetime.now(UTC).date()
     core.server_module.load_events.return_value = [
         {
             "summary": "x",
-            "start": f"{today.isoformat()}T09:00:00+00:00",
-            "end": f"{today.isoformat()}T10:00:00+00:00",
+            "start": _future_today_iso(1),
+            "end": _future_today_iso(2),
             "all_day": False,
             "feed_name": "y",
             "feed_colour": "#abc",
@@ -179,12 +325,11 @@ def test_show_location_off_drops_location_field() -> None:
 
 def test_max_events_per_day_truncates() -> None:
     app, _registry, core, _settings = _stub_app()
-    today = datetime.now(UTC).date()
     core.server_module.load_events.return_value = [
         {
             "summary": f"event {i}",
-            "start": f"{today.isoformat()}T{9 + i:02d}:00:00+00:00",
-            "end": f"{today.isoformat()}T{10 + i:02d}:00:00+00:00",
+            "start": _future_today_iso(1 + i),
+            "end": _future_today_iso(2 + i),
             "all_day": False,
             "feed_name": "y",
             "feed_colour": "#abc",
@@ -273,8 +418,8 @@ def test_max_events_total_caps_across_all_days() -> None:
         *[
             {
                 "summary": f"today-{i}",
-                "start": f"{today.isoformat()}T{9 + i:02d}:00:00+00:00",
-                "end": f"{today.isoformat()}T{10 + i:02d}:00:00+00:00",
+                "start": _future_today_iso(1 + i),
+                "end": _future_today_iso(2 + i),
                 "all_day": False,
                 "feed_name": "y",
                 "feed_colour": "#abc",
@@ -312,12 +457,11 @@ def test_max_events_total_caps_across_all_days() -> None:
 def test_max_events_total_zero_means_no_cap() -> None:
     """0 leaves everything intact and never sets ``truncated``."""
     app, _registry, core, _settings = _stub_app()
-    today = datetime.now(UTC).date()
     core.server_module.load_events.return_value = [
         {
             "summary": f"event-{i}",
-            "start": f"{today.isoformat()}T{9 + i:02d}:00:00+00:00",
-            "end": f"{today.isoformat()}T{10 + i:02d}:00:00+00:00",
+            "start": _future_today_iso(1 + i),
+            "end": _future_today_iso(2 + i),
             "all_day": False,
             "feed_name": "y",
             "feed_colour": "#abc",
