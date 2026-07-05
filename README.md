@@ -4,6 +4,18 @@ A [Tesserae](https://github.com/dmellok/tesserae) widget that paints a timeline-
 
 Reads from the same `calendar_core` feeds the other calendar_* widgets use. Drop in alongside `calendar_day` / `calendar_week` / `calendar_month`; pick which feeds to include per cell.
 
+## Screenshots
+
+Same widget in the same cell (1200 × 800), different values of `days_ahead` with `columns` on **Auto**. The layout grows only as far as it needs to.
+
+| Auto, 2 days (1 col) | Auto, 5 days (2 col) |
+|---|---|
+| ![Auto with a short list stays at 1 column](screenshots/auto-1col-short-list.png) | ![Auto with a workweek fits at 2 columns](screenshots/auto-2col-workweek.png) |
+
+| Auto, 14 days (4 col) | Auto, 16 days (4 col) |
+|---|---|
+| ![Auto with a fortnight uses 4 columns](screenshots/auto-4col-fortnight.png) | ![Auto with 16 days still fits at 4 columns](screenshots/auto-4col-16days.png) |
+
 ## Install
 
 Settings, Widgets, Browse community widgets, search "Calendar Schedule", Install. Restart Tesserae when prompted.
