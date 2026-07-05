@@ -413,8 +413,7 @@ function styles(fontFamily) {
       .rail-title {
         font-weight: 800;
         line-height: 1.14;
-        word-wrap: break-word;
-        overflow-wrap: anywhere;
+        overflow-wrap: break-word;
       }
       .rail-sub {
         font-size: 0.72em;
