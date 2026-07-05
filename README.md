@@ -1,6 +1,6 @@
 # Calendar, Schedule
 
-A [Tesserae](https://github.com/dmellok/tesserae) widget that paints a Google-Calendar-style agenda view: upcoming events grouped by day, with date headers, all-day events at the top of each day, and per-feed colour dots.
+A [Tesserae](https://github.com/dmellok/tesserae) widget that paints a timeline-rail agenda view: upcoming events grouped by day, with a thin ink rail connecting per-event nodes and a coloured start-time chip carrying the feed accent. Titles wrap freely so the widget stays legible from 1 up to 4 narrow columns on wide e-ink panels.
 
 Reads from the same `calendar_core` feeds the other calendar_* widgets use. Drop in alongside `calendar_day` / `calendar_week` / `calendar_month`; pick which feeds to include per cell.
 
@@ -19,23 +19,40 @@ Make sure you have at least one feed configured in **Widgets → Calendar Feeds*
 - **Time format**: Auto, 24-hour, or 12-hour.
 - **Skip days with no events**: when off, every day in the window renders even if empty.
 - **Max events per day**: cap each day's row count (0 = show all).
+- **Layout columns** (0.2.0+): flow the agenda across 1 to 4 vertical columns so a longer window (say two weeks) fits in a half-height cell without shrinking every row. Days stay atomic (never split across columns); the browser packs by real content height, not day count. Defaults to 1, so existing installs render unchanged.
+
+Feed colour is carried by the start-time chip and the all-day bar. Turning off **Show per-feed colour dot** replaces the chip fill with ink for 1-bit panels.
+
+### Sensible column defaults per panel
+
+| Panel                                  | Suggested `columns` |
+|----------------------------------------|---------------------|
+| ≤ 800 px wide (TRMNL, small mono)      | 1                   |
+| 1200 wide portrait (E1004, EE02)       | 2                   |
+| 1600 wide landscape (Inky 13.3")       | 2 or 3              |
+| 1872 wide landscape (E1003, TRMNL X)   | 3                   |
+| very wide desks / kiosks               | 4                   |
+
+The multi-column flow reads column-first: day 1 top-left, day 2 below it, wrap to top of column 2 when column 1 fills.
 
 ## Layout
 
+Each day is a header (big day number + weekday, muted month right-aligned) with a thick ink underline, followed by any all-day events as coloured bars, then a timeline rail of timed events. Each timed event has a coloured start-time chip on the left, a rail-node dot on a 2px vertical spine, and a wrapping title with `until <end time> · <location>` beneath. Days stay atomic across columns (never split).
+
 ```
-1  OCT, FRI    • All day    PTO Book Fair
-               • All day    Day A (Week 4)
-               • 6 – 7pm    PTO Fall Family Night
+6  MON                                                   JUL
+[09:00] •  Standup
+           until 09:30
+[11:00] •  Design review with Alex
+           until 12:00 · Studio A
+[12:30] •  Lunch w/ Sam
+           until 13:30 · Corner cafe
 
-2  OCT, SAT    • All day    PTO Book Fair
-
-4  OCT, MON    • All day    PTO Book Fair
-               • All day    Week of Respect (WHS theme days)
-               • All day    Day B
-               • 3:45 – 4:45pm  Voluntary PD: Carolina Science Online Review
+7  TUE                                                   JUL
+[ ALL DAY  Public Holiday                                    ]
+[08:00] •  Coffee walk
+           until 08:30
 ```
-
-Each day row has a big day number + day-of-week chip on the left, then rows of `time | dot | title (location)` on the right. All-day events are grouped at the top of each day; timed events follow in chronological order.
 
 The first day in the window is highlighted as "today" (accent-coloured day number).
 

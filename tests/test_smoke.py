@@ -362,6 +362,43 @@ def test_skip_empty_days_off_keeps_blank_buckets() -> None:
         assert d["events"] == []
 
 
+def test_columns_defaults_to_one_and_survives_round_trip() -> None:
+    """v0.2.0: ``columns`` cell option flows the agenda across N
+    vertical columns. Default is 1 (backwards compatible with existing
+    installs); the server clamps to [1, 4] and echoes the resolved
+    value back to the client so the JS can toggle the multi-column
+    CSS block."""
+    app, _registry, _core, _settings = _stub_app()
+    with patch.object(server, "current_app", app):
+        default_out = server.fetch(options={}, settings={}, ctx={})
+        two_col_out = server.fetch(options={"columns": "2"}, settings={}, ctx={})
+        four_col_out = server.fetch(options={"columns": 4}, settings={}, ctx={})
+    assert default_out["columns"] == 1
+    assert two_col_out["columns"] == 2
+    assert four_col_out["columns"] == 4
+
+
+def test_columns_clamped_to_one_to_four() -> None:
+    """Out-of-range or bad values fall through to 1 (default) or the
+    nearest valid bound. Users can't crash the widget by typing ``9``
+    or ``"lots"`` in the picker; a stray value is treated as ``1``."""
+    app, _registry, _core, _settings = _stub_app()
+    with patch.object(server, "current_app", app):
+        assert (
+            server.fetch(options={"columns": "9"}, settings={}, ctx={})["columns"] == 4
+        )
+        assert (
+            server.fetch(options={"columns": "0"}, settings={}, ctx={})["columns"] == 1
+        )
+        assert (
+            server.fetch(options={"columns": "lots"}, settings={}, ctx={})["columns"]
+            == 1
+        )
+        assert (
+            server.fetch(options={"columns": None}, settings={}, ctx={})["columns"] == 1
+        )
+
+
 def test_missing_calendar_core_surfaces_error() -> None:
     """No calendar_core installed -> friendly error, no crash."""
     app = MagicMock()

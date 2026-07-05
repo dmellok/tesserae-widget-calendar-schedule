@@ -103,6 +103,11 @@ def fetch(
     except (TypeError, ValueError):
         max_total = 0
     show_title = bool(options.get("show_title", True))
+    try:
+        columns = int(options.get("columns") or 1)
+    except (TypeError, ValueError):
+        columns = 1
+    columns = max(1, min(4, columns))
 
     tz = _resolve_local_tz()
     now_local = datetime.now(tz)
@@ -244,6 +249,7 @@ def fetch(
         "show_location": show_location,
         "show_dot_color": show_dot_color,
         "show_title": show_title,
+        "columns": columns,
         "days": days_out,
         "count": sum(len(d["events"]) for d in days_out),
         "truncated": truncated,

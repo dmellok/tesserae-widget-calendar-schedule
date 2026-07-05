@@ -1,73 +1,25 @@
-// calendar_schedule: Google-Calendar-style agenda renderer.
+// calendar_schedule: timeline-rail agenda renderer.
 //
 // The server has already grouped events by local-zone date and emitted
 // start_local / end_local with the local-zone offset baked in. We only
 // need to format the wall-clock time for display (12h vs 24h) and lay
 // the rows out.
+//
+// v0.3.0: rewritten to the timeline-rail design. Feed colour lives in
+// the start-time chip (and all-day bar). Titles wrap freely instead of
+// truncating, so the widget stays legible at 3 to 4 columns on wide
+// e-ink panels. Days flow column-first via CSS multi-column.
 
 export default function render(shadow, ctx) {
   const data = (ctx && ctx.data) || {};
-  const fontFamily = (ctx && ctx.font && ctx.font.family) || "system-ui";
+  const fontFamily = (ctx && ctx.font && ctx.font.family) || "Archivo, system-ui, sans-serif";
   shadow.innerHTML = layout(data, fontFamily);
-  scheduleAutoFit(shadow);
-}
-
-// Measure the rendered content vs the cell height and set a CSS scale
-// variable so the agenda fills the available space without overflowing.
-// rAF defers measurement until after the first layout pass. ResizeObserver
-// re-fits when the cell resizes (preview iframes, layout editor drags).
-function scheduleAutoFit(shadow) {
-  if (typeof requestAnimationFrame === "function") {
-    requestAnimationFrame(() => fitToHeight(shadow));
-  } else {
-    fitToHeight(shadow);
-  }
-  if (typeof ResizeObserver === "function") {
-    const frame = shadow.querySelector(".frame");
-    if (frame) {
-      const ro = new ResizeObserver(() => fitToHeight(shadow));
-      ro.observe(frame);
-    }
-  }
-}
-
-// Single-pass shrink-or-grow. Measure base scale, compute target/actual
-// ratio, apply. The 0.6 floor stops the font from getting so small the
-// text becomes illegible; the 1.6 ceiling stops a single-event cell from
-// blowing up the day-number out of proportion.
-function fitToHeight(shadow) {
-  const frame = shadow.querySelector(".frame");
-  const body = shadow.querySelector(".body");
-  const days = shadow.querySelector(".days");
-  if (!frame || !body || !days) return;
-  frame.style.setProperty("--auto-font-scale", "1");
-  // Body is the flex-1 area below the optional title row, so its
-  // clientHeight is the real available space for ``.days``. Using the
-  // frame's height includes the title and over-counted the target.
-  const target = body.clientHeight;
-  const actual = days.scrollHeight;
-  if (!target || !actual) return;
-  let scale = 1;
-  if (actual > target) {
-    scale = Math.max(0.6, target / actual);
-  } else if (actual * 1.6 < target) {
-    scale = Math.min(1.6, (target / actual) * 0.92);
-  }
-  if (Math.abs(scale - 1) > 0.02) {
-    frame.style.setProperty("--auto-font-scale", String(scale));
-  }
 }
 
 function layout(data, fontFamily) {
-  // Honour the documented "12h" / "24h" choices; legacy "auto" (shipped
-  // in v0.1.0) falls back to 12h to match the new default.
   if (data && data.time_format && String(data.time_format).toLowerCase() === "auto") {
     data = { ...data, time_format: "12h" };
   }
-  // ``show_title`` defaults to true (matches the server default and
-  // the Spectra widget chrome convention). Old payloads without the
-  // field still render the title so the cell upgrade is visually
-  // consistent without re-editing every dashboard.
   const showTitle = data.show_title !== false;
   const truncated = !!data.truncated;
   const titleHtml = showTitle ? renderTitle(truncated) : "";
@@ -76,7 +28,7 @@ function layout(data, fontFamily) {
       ${styles(fontFamily)}
       <div class="frame">
         ${titleHtml}
-        <div class="body"><div class="error"><p>${escapeHtml(data.error)}</p></div></div>
+        <div class="body"><div class="notice"><p>${escapeHtml(data.error)}</p></div></div>
       </div>
     `;
   }
@@ -87,7 +39,7 @@ function layout(data, fontFamily) {
       <div class="frame">
         ${titleHtml}
         <div class="body">
-          <div class="empty">
+          <div class="notice">
             <i class="ph ph-calendar-blank" aria-hidden="true"></i>
             <p>No upcoming events.</p>
           </div>
@@ -96,108 +48,112 @@ function layout(data, fontFamily) {
     `;
   }
   const tf = (data.time_format || "12h").toLowerCase();
+  const rawCols = Number(data.columns);
+  const columns = Number.isFinite(rawCols)
+    ? Math.max(1, Math.min(4, Math.floor(rawCols)))
+    : 1;
+  const showColour = data.show_dot_color !== false;
   return `
     ${styles(fontFamily)}
-    <div class="frame">
+    <div class="frame" data-cols="${columns}">
       ${titleHtml}
       <div class="body">
-        <ul class="days">
-          ${days.map((d) => renderDay(d, tf)).join("")}
-        </ul>
+        <div class="days">
+          ${days.map((d) => renderDay(d, tf, showColour)).join("")}
+        </div>
       </div>
     </div>
   `;
 }
 
 function renderTitle(truncated) {
-  // Mirrors the Spectra ``w-title`` chrome (icon + heading) using only
-  // the design tokens already in scope. The "+more" pill is visually
-  // small but does signal to the user that they're hitting the cap so
-  // they can lift it if they want.
   const truncatedPill = truncated
     ? `<span class="title-pill" title="More events were available; lift Max events across the whole agenda to show them.">capped</span>`
     : "";
   return `
     <div class="title">
-      <i class="ph ph-list-bullets" aria-hidden="true"></i>
+      <i class="ph-bold ph-list-bullets" aria-hidden="true"></i>
       <span class="title-text">Schedule</span>
       ${truncatedPill}
     </div>
   `;
 }
 
-function renderDay(day, timeFormat) {
-  const rows = (day.events || []).map((e) => renderRow(e, timeFormat)).join("");
-  const todayClass = day.is_today ? " is-today" : "";
-  const tomorrowClass = day.is_tomorrow ? " is-tomorrow" : "";
-  return `
-    <li class="day${todayClass}${tomorrowClass}">
-      <div class="day-marker">
-        <div class="day-num">${escapeHtml(String(day.day_of_month ?? ""))}</div>
-        <div class="day-stub">
-          <span class="day-month">${escapeHtml(day.month_short || "")}</span>
-          <span class="day-dow">${escapeHtml(day.day_of_week_short || "")}</span>
-        </div>
-      </div>
-      <ul class="rows">
-        ${rows || `<li class="row row--empty"><span class="row-time">—</span><span class="row-title muted">(no events)</span></li>`}
-      </ul>
-    </li>
-  `;
-}
-
-function renderRow(ev, timeFormat) {
-  const isAllDay = ev.all_day === true;
-  const timeStr = isAllDay
-    ? "All day"
-    : formatTimeRange(ev.start_local, ev.end_local, timeFormat);
-  const dot = ev.colour
-    ? `<span class="row-dot" style="background:${escapeHtml(ev.colour)};"></span>`
-    : `<span class="row-dot row-dot--blank"></span>`;
-  const title = escapeHtml(ev.summary || "(untitled)");
-  const location = ev.location
-    ? `<span class="row-location">${escapeHtml(ev.location)}</span>`
+function renderDay(day, timeFormat, showColour) {
+  const events = Array.isArray(day.events) ? day.events : [];
+  const allDay = events.filter((e) => e && e.all_day === true);
+  const timed = events.filter((e) => e && e.all_day !== true);
+  const allDayHtml = allDay.length
+    ? `<div class="all-day-stack">${allDay.map((e) => renderAllDay(e, showColour)).join("")}</div>`
     : "";
+  const timedHtml = timed.length
+    ? `<div class="rail">${timed.map((e) => renderTimed(e, timeFormat, showColour)).join("")}</div>`
+    : "";
+  const empty = !allDay.length && !timed.length
+    ? `<div class="day-empty">(no events)</div>`
+    : "";
+  const todayClass = day.is_today ? " is-today" : "";
   return `
-    <li class="row">
-      ${dot}
-      <span class="row-time">${escapeHtml(timeStr)}</span>
-      <span class="row-title">${title}${location}</span>
-    </li>
+    <section class="day${todayClass}">
+      <header class="day-header">
+        <span class="day-num">${escapeHtml(String(day.day_of_month ?? ""))}</span>
+        <span class="day-dow">${escapeHtml(day.day_of_week_short || "")}</span>
+        <span class="day-month">${escapeHtml(day.month_short || "")}</span>
+      </header>
+      ${allDayHtml}
+      ${timedHtml}
+      ${empty}
+    </section>
   `;
 }
 
-function formatTimeRange(startIso, endIso, format) {
-  const startParts = formatTimeParts(startIso, format);
-  if (!startParts) return "";
-  if (!endIso || endIso === startIso) return startParts.label;
-  const endParts = formatTimeParts(endIso, format);
-  if (!endParts) return startParts.label;
-  // Google Calendar trick: suppress the start's am/pm suffix when start
-  // and end share it, so "3:45pm - 4:45pm" becomes "3:45 - 4:45pm".
-  // Saves a few chars and reads more naturally for same-period ranges.
-  if (format === "12h" && startParts.suffix && startParts.suffix === endParts.suffix) {
-    return `${startParts.body} – ${endParts.label}`;
-  }
-  return `${startParts.label} – ${endParts.label}`;
+function renderAllDay(ev, showColour) {
+  const title = escapeHtml(ev.summary || "(untitled)");
+  const bg = showColour && ev.colour ? ev.colour : "var(--text-primary, #1B1A16)";
+  const styleAttr = `style="background:${escapeAttr(bg)}"`;
+  return `
+    <div class="all-day" ${styleAttr}>
+      <span class="all-day-label">ALL DAY</span>
+      <span class="all-day-title">${title}</span>
+    </div>
+  `;
 }
 
-function formatTimeParts(iso, format) {
-  if (typeof iso !== "string") return null;
+function renderTimed(ev, timeFormat, showColour) {
+  const title = escapeHtml(ev.summary || "(untitled)");
+  const startChip = formatChipLabel(ev.start_local, timeFormat);
+  const endLabel = formatChipLabel(ev.end_local, timeFormat);
+  const bg = showColour && ev.colour ? ev.colour : "var(--text-primary, #1B1A16)";
+  const chipStyle = `style="background:${escapeAttr(bg)}"`;
+  const sub = endLabel
+    ? `until ${escapeHtml(endLabel)}${ev.location ? ` · ${escapeHtml(ev.location)}` : ""}`
+    : (ev.location ? escapeHtml(ev.location) : "");
+  return `
+    <div class="rail-row">
+      <div class="time-gutter">
+        <span class="time-chip" ${chipStyle}>${escapeHtml(startChip || "")}</span>
+      </div>
+      <div class="rail-spine"><span class="rail-node"></span></div>
+      <div class="rail-content">
+        <div class="rail-title">${title}</div>
+        ${sub ? `<div class="rail-sub">${sub}</div>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function formatChipLabel(iso, format) {
+  if (typeof iso !== "string") return "";
   const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return null;
+  if (!Number.isFinite(d.getTime())) return "";
   const h24 = d.getHours();
   const m = d.getMinutes();
   if (format === "12h") {
     const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
     const suffix = h24 < 12 ? "am" : "pm";
-    // Drop minutes when zero (Google Calendar style): "6pm" not "6:00pm".
-    const body = m === 0 ? `${h12}` : `${h12}:${pad2(m)}`;
-    return { body, suffix, label: `${body}${suffix}` };
+    return m === 0 ? `${h12}${suffix}` : `${h12}:${pad2(m)}${suffix}`;
   }
-  // 24h
-  const label = `${pad2(h24)}:${pad2(m)}`;
-  return { body: label, suffix: "", label };
+  return `${pad2(h24)}:${pad2(m)}`;
 }
 
 function pad2(n) {
@@ -220,189 +176,219 @@ function styles(fontFamily) {
       .frame {
         width: 100%;
         height: 100%;
-        overflow: hidden;
-        padding: clamp(4px, 1.5cqmin, 14px) clamp(6px, 2cqmin, 18px);
         box-sizing: border-box;
-        /* Base size is bigger than v0.1.0 (0.85em min, 2.8cqmin mid,
-           1.2em max); the JS auto-fit then multiplies by a scale that
-           expands to fill remaining vertical space or shrinks to
-           prevent overflow. */
-        font-size: calc(clamp(0.85em, 2.8cqmin, 1.2em) * var(--auto-font-scale, 1));
-        line-height: 1.3;
-        /* Flex column so the optional title row sits at natural height
-           and the body area takes whatever's left. fitToHeight targets
-           body.clientHeight for the scale calculation. */
+        padding: clamp(10px, 2cqmin, 18px);
         display: flex;
         flex-direction: column;
-        gap: clamp(2px, 0.6cqmin, 8px);
+        /* Container-query base size. Reference targets at an 800px min
+           cell dimension: cols 1->19px, 2->17px, 3->16px, 4->15px. The
+           14-22px clamp keeps the widget legible across the range of
+           cell sizes Tesserae ships. */
+        font-size: clamp(14px, calc(var(--f-scale, 2.4) * 1cqmin), 22px);
+        line-height: 1.2;
       }
+      .frame[data-cols="1"] { --f-scale: 2.4; }
+      .frame[data-cols="2"] { --f-scale: 2.1; }
+      .frame[data-cols="3"] { --f-scale: 2.0; }
+      .frame[data-cols="4"] { --f-scale: 1.85; }
+
+      /* Widget chrome title row (matches weather_now / calendar_day). */
       .title {
-        flex: 0 0 auto;
         display: flex;
         align-items: center;
-        gap: 0.4em;
-        font-size: 0.75em;
-        font-weight: 700;
-        letter-spacing: 0.06em;
+        gap: 0.5em;
+        padding: 0 0 0.4em 0;
+        margin-bottom: 0.5em;
+        border-bottom: 2px solid var(--border, #E5E1D6);
+        font-size: 0.78em;
+        font-weight: 800;
+        letter-spacing: 0.09em;
         text-transform: uppercase;
-        color: var(--text-secondary, var(--muted, #76705E));
-        padding-bottom: clamp(2px, 0.5cqmin, 6px);
-        border-bottom: 1px solid var(--border, #E5E1D6);
+        color: var(--text-muted, var(--muted, #8A8678));
+        flex: 0 0 auto;
       }
       .title i {
-        font-size: 1.15em;
+        font-size: 1.1em;
         color: var(--accent-1, var(--accent, #C24F2C));
       }
-      .title-text {
-        flex: 1 1 auto;
-      }
+      .title-text { flex: 1 1 auto; }
       .title-pill {
         flex: 0 0 auto;
-        font-size: 0.7em;
+        font-size: 0.85em;
         font-weight: 700;
         letter-spacing: 0.05em;
         padding: 0.1em 0.5em;
         border-radius: 999px;
-        background: var(--surface-sunken, color-mix(in oklab, var(--text-primary, #1B1A16) 8%, transparent));
+        background: color-mix(in oklab, var(--text-primary, #1B1A16) 8%, transparent);
         color: var(--text-primary, #1B1A16);
       }
+
       .body {
         flex: 1 1 auto;
         min-height: 0;
         overflow: hidden;
       }
+
+      /* Multi-column agenda. column-fill: auto needs a definite height
+         on .days to know how much vertical space to fill before wrapping
+         to the next column; height: 100% chains through the flex .body
+         so it inherits the cell's remaining space. */
       .days {
-        list-style: none;
-        margin: 0;
-        padding: 0;
+        height: 100%;
+        column-gap: 1.5em;
+        column-rule: 2px solid var(--border, #E5E1D6);
+        column-fill: auto;
       }
+      .frame[data-cols="2"] .days { column-count: 2; }
+      .frame[data-cols="3"] .days { column-count: 3; }
+      .frame[data-cols="4"] .days { column-count: 4; }
+
       .day {
-        display: grid;
-        grid-template-columns: clamp(34px, 8cqmin, 60px) 1fr;
-        /* em-based gaps + padding so the layout breathes together with
-           the JS auto-fit font scale. When the font grows to fill a
-           tall cell, the vertical rhythm grows with it; when it
-           shrinks, things stay tight. */
-        gap: 0.9em;
-        align-items: start;
-        padding: 0.5em 0;
-        border-top: 2px solid var(--border, #E5E1D6);
+        break-inside: avoid;
+        margin-bottom: 1em;
       }
-      .day:first-child {
-        border-top: 0;
-        padding-top: 0;
-      }
-      .day-marker {
+      .day:last-child { margin-bottom: 0; }
+
+      .day-header {
         display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        line-height: 1;
+        align-items: baseline;
+        gap: 0.55em;
+        border-bottom: 3px solid var(--text-primary, #1B1A16);
+        padding-bottom: 0.15em;
       }
       .day-num {
-        font-size: 1.45em;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-      }
-      .day-stub {
-        display: flex;
-        flex-direction: column;
-        margin-top: 0.25em;
-        font-size: 0.65em;
-        letter-spacing: 0.08em;
-        color: var(--muted, #76705E);
-        text-transform: uppercase;
-        font-weight: 600;
-      }
-      .day-dow {
-        margin-top: 0.1em;
+        font-size: 2.3em;
+        font-weight: 800;
+        line-height: 0.82;
       }
       .day.is-today .day-num {
-        color: var(--accent, #C24F2C);
+        color: var(--accent-1, var(--accent, #C24F2C));
       }
-      .rows {
-        list-style: none;
-        margin: 0;
-        padding: 0;
+      .day-dow {
+        font-size: 0.95em;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+      }
+      .day-month {
+        margin-left: auto;
+        font-size: 0.78em;
+        font-weight: 700;
+        color: var(--text-muted, var(--muted, #8A8678));
+      }
+
+      .all-day-stack {
         display: flex;
         flex-direction: column;
-        /* em-based vertical gap so rows breathe in sync with the
-           auto-fit font scale. */
-        gap: 0.3em;
-        min-width: 0;
+        gap: 0.24em;
+        margin-top: 0.44em;
       }
-      .row {
-        display: grid;
-        /* Dot first (left), then time, then title. Time column is
-           fixed at 13ch (snug fit for "3:45 - 4:45pm" and
-           "13:30 - 14:30", both ~13ch) so the time never truncates
-           while keeping wasted space minimal. column-gap halved from
-           v0.1.1 (1.2em -> 0.5em) on user feedback that the title
-           felt too far from the time. */
-        grid-template-columns: 1.2em 13ch 1fr;
-        column-gap: 0.5em;
-        align-items: baseline;
-        min-width: 0;
-      }
-      .row-time {
-        font-variant-numeric: tabular-nums;
-        color: var(--muted, #76705E);
-        font-size: 0.9em;
+      .all-day {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        padding: 0.35em 0.65em;
+        border-radius: 2px;
+        color: var(--surface, #FCFBF7);
+        font-weight: 800;
+        font-size: 0.82em;
         white-space: nowrap;
-        /* No ellipsis: the user explicitly asked that the time never
-           truncate. The 14ch column above is sized so we don't need
-           an overflow fallback in practice. */
+        overflow: hidden;
       }
-      .row-dot {
-        width: 0.65em;
-        height: 0.65em;
-        border-radius: 50%;
-        display: inline-block;
-        align-self: center;
-        background: var(--muted, #76705E);
+      .all-day-label {
+        font-size: 0.72em;
+        letter-spacing: 0.09em;
+        opacity: 0.85;
+        flex: 0 0 auto;
       }
-      .row-dot--blank {
-        visibility: hidden;
-      }
-      .row-title {
-        font-weight: 500;
-        min-width: 0;
+      .all-day-title {
+        flex: 1 1 auto;
         text-overflow: ellipsis;
         overflow: hidden;
+      }
+
+      .rail {
+        display: flex;
+        flex-direction: column;
+        margin-top: 0.44em;
+      }
+      .rail-row {
+        display: flex;
+        align-items: stretch;
+      }
+      .time-gutter {
+        flex: 0 0 auto;
+        min-width: 3.25em;
+        display: flex;
+        justify-content: flex-end;
+        padding-right: 0.6em;
+        padding-top: 0.12em;
+      }
+      .time-chip {
+        color: var(--surface, #FCFBF7);
+        font-weight: 800;
+        font-size: 0.72em;
+        padding: 0.18em 0.36em;
+        border-radius: 5px;
         white-space: nowrap;
+        height: fit-content;
       }
-      .row-location {
-        margin-left: 0.7em;
-        color: var(--muted, #76705E);
-        font-weight: 400;
-        font-size: 0.92em;
+      /* The rail is a 2px vertical line running the full row height so
+         adjacent rows' rails abut into a continuous spine. The node dot
+         is absolutely positioned on the rail so it lines up with the
+         top of the title regardless of title wrap depth. */
+      .rail-spine {
+        flex: 0 0 auto;
+        width: 2px;
+        background: var(--border, #E5E1D6);
+        position: relative;
       }
-      .row--empty .row-time {
-        color: var(--border, #E5E1D6);
+      .rail-node {
+        position: absolute;
+        left: -4px;
+        top: 0.36em;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--text-primary, #1B1A16);
+        border: 2px solid var(--surface, #FCFBF7);
+        box-sizing: content-box;
       }
-      .row--empty .row-title {
-        font-style: italic;
-        font-weight: 400;
+      .rail-content {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 0.12em 0 0.72em 0.85em;
       }
-      .muted {
-        color: var(--muted, #76705E);
+      .rail-title {
+        font-weight: 800;
+        line-height: 1.14;
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
       }
-      .error, .empty {
-        height: 100%;
+      .rail-sub {
+        font-size: 0.72em;
+        font-weight: 600;
+        color: var(--text-muted, var(--muted, #8A8678));
+        margin-top: 0.06em;
+      }
+
+      .day-empty {
+        font-size: 0.85em;
+        color: var(--text-muted, var(--muted, #8A8678));
+        margin-top: 0.4em;
+      }
+
+      .notice {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        height: 100%;
         gap: 0.4em;
+        color: var(--text-muted, var(--muted, #8A8678));
         text-align: center;
-        color: var(--muted, #76705E);
       }
-      .empty i {
-        font-size: 2.2em;
-        opacity: 0.5;
-      }
-      .empty p, .error p {
-        margin: 0;
-      }
+      .notice i { font-size: 2em; }
+      .notice p { margin: 0; font-weight: 600; }
     </style>
   `;
 }
