@@ -362,26 +362,27 @@ def test_skip_empty_days_off_keeps_blank_buckets() -> None:
         assert d["events"] == []
 
 
-def test_columns_defaults_to_one_and_survives_round_trip() -> None:
-    """v0.2.0: ``columns`` cell option flows the agenda across N
-    vertical columns. Default is 1 (backwards compatible with existing
-    installs); the server clamps to [1, 4] and echoes the resolved
-    value back to the client so the JS can toggle the multi-column
-    CSS block."""
+def test_columns_defaults_to_auto_and_survives_round_trip() -> None:
+    """v0.4.0: ``columns`` defaults to ``"auto"``. The client grows the
+    column count 1..4 until the list fits; a fixed integer 1..4 skips
+    that fit-loop and pins the layout. The server echoes the resolved
+    value back so the client knows which mode to run in."""
     app, _registry, _core, _settings = _stub_app()
     with patch.object(server, "current_app", app):
         default_out = server.fetch(options={}, settings={}, ctx={})
+        auto_out = server.fetch(options={"columns": "auto"}, settings={}, ctx={})
         two_col_out = server.fetch(options={"columns": "2"}, settings={}, ctx={})
         four_col_out = server.fetch(options={"columns": 4}, settings={}, ctx={})
-    assert default_out["columns"] == 1
+    assert default_out["columns"] == "auto"
+    assert auto_out["columns"] == "auto"
     assert two_col_out["columns"] == 2
     assert four_col_out["columns"] == 4
 
 
 def test_columns_clamped_to_one_to_four() -> None:
-    """Out-of-range or bad values fall through to 1 (default) or the
-    nearest valid bound. Users can't crash the widget by typing ``9``
-    or ``"lots"`` in the picker; a stray value is treated as ``1``."""
+    """Out-of-range or bad values fall through to the nearest valid
+    bound (numeric) or auto (empty). Users can't crash the widget by
+    typing ``9`` or ``"lots"`` in the picker."""
     app, _registry, _core, _settings = _stub_app()
     with patch.object(server, "current_app", app):
         assert (
@@ -394,8 +395,15 @@ def test_columns_clamped_to_one_to_four() -> None:
             server.fetch(options={"columns": "lots"}, settings={}, ctx={})["columns"]
             == 1
         )
+        # None / missing value falls through to auto (the default), not 1.
         assert (
-            server.fetch(options={"columns": None}, settings={}, ctx={})["columns"] == 1
+            server.fetch(options={"columns": None}, settings={}, ctx={})["columns"]
+            == "auto"
+        )
+        # Case-insensitive AUTO string; some UIs echo the option label back.
+        assert (
+            server.fetch(options={"columns": "AUTO"}, settings={}, ctx={})["columns"]
+            == "auto"
         )
 
 

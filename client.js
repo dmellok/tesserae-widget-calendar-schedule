@@ -14,6 +14,55 @@ export default function render(shadow, ctx) {
   const data = (ctx && ctx.data) || {};
   const fontFamily = (ctx && ctx.font && ctx.font.family) || "Archivo, system-ui, sans-serif";
   shadow.innerHTML = layout(data, fontFamily);
+  if (isAutoColumns(data)) {
+    scheduleAutoColumns(shadow);
+  }
+}
+
+function isAutoColumns(data) {
+  return typeof data?.columns === "string" && data.columns.toLowerCase() === "auto";
+}
+
+// Overflow-driven column growth. Starts at 1 column and bumps up to 4
+// until the day list stops overflowing horizontally into the implicit
+// next-column zone. ``scrollWidth > clientWidth`` on ``.days`` catches
+// that overflow because CSS multi-column with ``column-fill: auto`` and
+// a definite height flows extra content into unrendered columns to the
+// right. rAF defers the first check until after layout. ResizeObserver
+// re-fits when the cell resizes (preview iframes, layout editor drags).
+function scheduleAutoColumns(shadow) {
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(() => fitColumns(shadow));
+  } else {
+    fitColumns(shadow);
+  }
+  const host = shadow.host;
+  if (host && typeof ResizeObserver === "function") {
+    const ro = new ResizeObserver(() => fitColumns(shadow));
+    ro.observe(host);
+  }
+}
+
+function fitColumns(shadow) {
+  const frame = shadow.querySelector(".frame");
+  const days = shadow.querySelector(".days");
+  if (!frame || !days) return;
+  for (let n = 1; n <= 4; n++) {
+    frame.setAttribute("data-cols", String(n));
+    // Force layout so scroll dimensions reflect the current column count.
+    void days.offsetWidth;
+    // At cols=1 there is no column-count set, so overflow shows up
+    // vertically (scrollHeight > clientHeight). At cols>=2 with
+    // column-fill: auto and a definite height, overflow shows up
+    // horizontally as implicit next columns (scrollWidth > clientWidth).
+    // Check both so the loop stops as soon as the list actually fits.
+    const overflowV = days.scrollHeight > days.clientHeight + 1;
+    const overflowH = days.scrollWidth > days.clientWidth + 1;
+    if (!overflowV && !overflowH) return;
+  }
+  // Fell through the loop: even 4 columns overflow; leave at 4 and let
+  // the container clip. Better to show as much as possible than to
+  // silently drop back to 1.
 }
 
 function layout(data, fontFamily) {
@@ -48,6 +97,9 @@ function layout(data, fontFamily) {
     `;
   }
   const tf = (data.time_format || "12h").toLowerCase();
+  // ``columns`` is either an integer 1..4 or the string "auto". Auto
+  // renders with cols=1 initially; scheduleAutoColumns() bumps the
+  // ``data-cols`` attribute up until content fits.
   const rawCols = Number(data.columns);
   const columns = Number.isFinite(rawCols)
     ? Math.max(1, Math.min(4, Math.floor(rawCols)))

@@ -103,11 +103,18 @@ def fetch(
     except (TypeError, ValueError):
         max_total = 0
     show_title = bool(options.get("show_title", True))
-    try:
-        columns = int(options.get("columns") or 1)
-    except (TypeError, ValueError):
-        columns = 1
-    columns = max(1, min(4, columns))
+    # ``columns`` accepts the string "auto" (client grows 1..4 until the
+    # list fits) or an integer 1..4 (fixed count). Anything else falls
+    # back to auto.
+    raw_columns = str(options.get("columns") or "auto").strip().lower()
+    if raw_columns == "auto":
+        columns: int | str = "auto"
+    else:
+        try:
+            n = int(raw_columns)
+        except ValueError:
+            n = 1
+        columns = max(1, min(4, n))
 
     tz = _resolve_local_tz()
     now_local = datetime.now(tz)

@@ -19,11 +19,13 @@ Make sure you have at least one feed configured in **Widgets → Calendar Feeds*
 - **Time format**: Auto, 24-hour, or 12-hour.
 - **Skip days with no events**: when off, every day in the window renders even if empty.
 - **Max events per day**: cap each day's row count (0 = show all).
-- **Layout columns** (0.2.0+): flow the agenda across 1 to 4 vertical columns so a longer window (say two weeks) fits in a half-height cell without shrinking every row. Days stay atomic (never split across columns); the browser packs by real content height, not day count. Defaults to 1, so existing installs render unchanged.
+- **Layout columns**: flow the agenda across 1 to 4 vertical columns so a longer window (say two weeks) fits in a half-height cell without shrinking every row. Defaults to **Auto**, which starts at 1 and grows the column count only until the whole list fits; pick a fixed count (1-4) if you want to lock the layout. Days stay atomic (never split across columns); the browser packs by real content height, not day count.
 
 Feed colour is carried by the start-time chip and the all-day bar. Turning off **Show per-feed colour dot** replaces the chip fill with ink for 1-bit panels.
 
 ### Sensible column defaults per panel
+
+Leave it on **Auto** if you don't know what to pick. When you want to force a specific layout, the rough guide is:
 
 | Panel                                  | Suggested `columns` |
 |----------------------------------------|---------------------|
