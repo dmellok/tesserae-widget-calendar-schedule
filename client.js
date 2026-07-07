@@ -48,12 +48,28 @@ function ensureContinuationHeaders(shadow) {
   // that changes the break points doesn't stack duplicates.
   days.querySelectorAll(".day-header--continuation").forEach((n) => n.remove());
   const sections = days.querySelectorAll(".day[data-day-id]");
-  // v0.4.4: two-pass insertion. Measure every event's initial column
-  // FIRST (before any mutation), then apply all insertions in a
-  // second pass. The v0.4.3 single-pass version measured items after
-  // already inserting earlier continuation headers, which reflowed
-  // the column packer mid-iteration and caused stale readings +
-  // occasional missing / duplicated continuation headers.
+  // v0.4.8: derive a column INDEX (0..N-1) from the days container's
+  // width + column-count + column-gap, then compare indices instead
+  // of raw .left offsets. The v0.4.4 raw-pixel comparison sporadically
+  // fired for the FIRST item of every section because header (flex
+  // container with border-bottom) and rail-row (flex container with
+  // time-chip + spine) measured .left with sub-pixel differences that
+  // round to different integers on some panels, forcing a spurious
+  // continuation header immediately below the original.
+  const daysRect = days.getBoundingClientRect();
+  const cs = getComputedStyle(days);
+  const columnCount = Math.max(1, parseInt(cs.columnCount, 10) || 1);
+  const columnGap = parseFloat(cs.columnGap) || 0;
+  const columnWidth = (daysRect.width - (columnCount - 1) * columnGap) / columnCount;
+  const columnStep = columnWidth + columnGap;
+  const columnOf = (el) => {
+    if (columnStep <= 0) return 0;
+    const rect = el.getBoundingClientRect();
+    return Math.max(0, Math.min(columnCount - 1, Math.round((rect.left - daysRect.left) / columnStep)));
+  };
+  // Two-pass: measure every item's column FIRST, then insert. The
+  // v0.4.3 single-pass version reflowed the column packer mid-loop
+  // and caused stale readings.
   const plannedInsertions = [];
   sections.forEach((section) => {
     const header = section.querySelector("[data-day-header]");
@@ -62,7 +78,7 @@ function ensureContinuationHeaders(shadow) {
       (n) => n !== header && n.getBoundingClientRect
     );
     if (eventBlocks.length === 0) return;
-    const headerColumn = Math.round(header.getBoundingClientRect().left);
+    const headerColumn = columnOf(header);
     let lastColumn = headerColumn;
     eventBlocks.forEach((block) => {
       // ``all-day-stack`` and ``rail`` are wrappers; look inside them.
@@ -70,7 +86,7 @@ function ensureContinuationHeaders(shadow) {
         ? Array.from(block.children)
         : [block];
       items.forEach((item) => {
-        const col = Math.round(item.getBoundingClientRect().left);
+        const col = columnOf(item);
         if (col !== lastColumn && col !== headerColumn) {
           plannedInsertions.push({ header, item });
           lastColumn = col;
