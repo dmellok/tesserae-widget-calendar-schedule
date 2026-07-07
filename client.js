@@ -86,6 +86,76 @@ function ensureContinuationHeaders(shadow) {
     clone.removeAttribute("data-day-header");
     item.parentElement.insertBefore(clone, item);
   });
+  distributeColumnSpace(shadow);
+}
+
+/*
+ * v0.4.5 (r/eink launch feedback): CSS multi-column with
+ * ``column-fill: auto`` packs the first column but atomic items
+ * (break-inside: avoid) leave slack at the bottom whenever the next
+ * item didn't fit. Users read that trailing whitespace as "wasted
+ * space, the widget could have shown another event there." We can't
+ * cram a partial event in (that would split the row), but we CAN
+ * spread the items already in the column apart so the whitespace
+ * disappears visually and the column reads full.
+ *
+ * Approach: walk atomic items in DOM order, group by measured
+ * column (left offset), skip the final column, and for each other
+ * column with at least two items distribute the remaining vertical
+ * space as extra ``margin-top`` on items 2..N. Total added padding
+ * equals the exact slack so the column fills without pushing any
+ * item into the next column. Idempotent: previous ``data-col-gap``
+ * markers are cleared before re-measuring so a resize / re-fit
+ * doesn't stack.
+ */
+function distributeColumnSpace(shadow) {
+  const days = shadow.querySelector(".days");
+  if (!days) return;
+  // Clear any gaps we applied on a previous pass so subsequent
+  // measurements see the natural layout.
+  days.querySelectorAll("[data-col-gap]").forEach((el) => {
+    el.style.marginTop = "";
+    el.removeAttribute("data-col-gap");
+  });
+  const atomic = Array.from(
+    days.querySelectorAll(
+      ".day-header, .day-header--continuation, .all-day, .rail-row, .day-empty"
+    )
+  );
+  if (atomic.length < 2) return;
+  const columnHeight = days.clientHeight;
+  const daysTop = days.getBoundingClientRect().top;
+  const groups = [];
+  let current = null;
+  atomic.forEach((el) => {
+    const rect = el.getBoundingClientRect();
+    const left = Math.round(rect.left);
+    if (!current || current.left !== left) {
+      current = { left, items: [], bottom: 0 };
+      groups.push(current);
+    }
+    current.items.push(el);
+    current.bottom = Math.max(current.bottom, rect.bottom - daysTop);
+  });
+  // Sort by column x so "final column" is truly the rightmost.
+  groups.sort((a, b) => a.left - b.left);
+  const nonFinal = groups.slice(0, -1);
+  nonFinal.forEach((group) => {
+    if (group.items.length < 2) return;
+    const remaining = columnHeight - group.bottom;
+    // Only bother when the slack is meaningful; a couple of pixels
+    // isn't worth a re-layout risk.
+    if (remaining < 12) return;
+    const gap = remaining / (group.items.length - 1);
+    group.items.slice(1).forEach((item) => {
+      // Preserve any existing natural margin (e.g. .day-header's
+      // 0.55em gap on the second-and-later day of a column) by
+      // adding to computed margin rather than replacing.
+      const natural = parseFloat(getComputedStyle(item).marginTop) || 0;
+      item.style.marginTop = `${natural + gap}px`;
+      item.setAttribute("data-col-gap", "1");
+    });
+  });
 }
 
 function isAutoColumns(data) {
@@ -407,7 +477,17 @@ function styles(fontFamily) {
       .day-header,
       .rail-row,
       .all-day {
+        /* v0.4.5: belt-and-suspenders with the vendor prefix + the
+           legacy ``page-break-inside`` alias. Chrome + Firefox honour
+           bare ``break-inside`` for CSS multi-column, but some engines
+           still split when the row's flex/grid children round to
+           slightly different heights than the outer row measured at
+           packing time. All three properties together force every
+           engine to keep the row atomic (r/eink launch feedback:
+           single events were still splitting across columns). */
         break-inside: avoid;
+        -webkit-column-break-inside: avoid;
+        page-break-inside: avoid;
       }
       /* Continuation header injected by JS at the top of a column
          when a day's events split across columns. Rendered in a
