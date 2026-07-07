@@ -478,13 +478,12 @@ function styles(fontFamily) {
       .rail-row,
       .all-day {
         /* v0.4.5: belt-and-suspenders with the vendor prefix + the
-           legacy ``page-break-inside`` alias. Chrome + Firefox honour
-           bare ``break-inside`` for CSS multi-column, but some engines
-           still split when the row's flex/grid children round to
-           slightly different heights than the outer row measured at
-           packing time. All three properties together force every
-           engine to keep the row atomic (r/eink launch feedback:
-           single events were still splitting across columns). */
+           legacy page-break-inside alias. Chrome and Firefox honour
+           the bare break-inside property for CSS multi-column, but
+           some engines still split when the row's flex or grid
+           children round to slightly different heights than the outer
+           row measured at packing time. All three properties together
+           force every engine to keep the row atomic. */
         break-inside: avoid;
         -webkit-column-break-inside: avoid;
         page-break-inside: avoid;
