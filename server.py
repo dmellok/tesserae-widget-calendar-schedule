@@ -106,13 +106,18 @@ def fetch(
         return {"error": "calendar_core plugin not installed.", "days": []}
 
     # v0.4.3: ``days_ahead`` accepts an integer or the literal "fill"
-    # (r/eink launch feedback, flinkazoid). ``fill`` pulls a year's
-    # worth of events; the client-side auto-column + column-fill flow
-    # then paints as many as physically fit in the cell without
-    # server-side guesswork about the panel size.
+    # (r/eink launch feedback, flinkazoid). ``fill`` pulls enough days
+    # to fill most panel sizes; the client-side auto-column +
+    # column-fill flow then paints as many as physically fit in the
+    # cell without server-side guesswork about the panel size.
+    # v0.4.4: dropped fill from 365 to 90 days — a full year of
+    # recurring events (daily standup, weekly 1:1s) balloons out to
+    # thousands of expanded instances via ``recurring_ical_events``
+    # and made every render slow. 90 days still fills a 4-column
+    # landscape panel comfortably.
     raw_days = str(options.get("days_ahead") or "").strip().lower()
     if raw_days == "fill":
-        days_ahead = 365
+        days_ahead = 90
     else:
         try:
             days_ahead = max(1, int(options.get("days_ahead") or 5))

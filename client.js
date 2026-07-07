@@ -48,13 +48,16 @@ function ensureContinuationHeaders(shadow) {
   // that changes the break points doesn't stack duplicates.
   days.querySelectorAll(".day-header--continuation").forEach((n) => n.remove());
   const sections = days.querySelectorAll(".day[data-day-id]");
+  // v0.4.4: two-pass insertion. Measure every event's initial column
+  // FIRST (before any mutation), then apply all insertions in a
+  // second pass. The v0.4.3 single-pass version measured items after
+  // already inserting earlier continuation headers, which reflowed
+  // the column packer mid-iteration and caused stale readings +
+  // occasional missing / duplicated continuation headers.
+  const plannedInsertions = [];
   sections.forEach((section) => {
     const header = section.querySelector("[data-day-header]");
     if (!header) return;
-    // Break points are between direct children of the section that
-    // aren't the header itself. Measure each child's left offset;
-    // when a subsequent child sits in a different column, insert a
-    // continuation header just before it.
     const eventBlocks = Array.from(section.children).filter(
       (n) => n !== header && n.getBoundingClientRect
     );
@@ -69,16 +72,19 @@ function ensureContinuationHeaders(shadow) {
       items.forEach((item) => {
         const col = Math.round(item.getBoundingClientRect().left);
         if (col !== lastColumn && col !== headerColumn) {
-          const clone = header.cloneNode(true);
-          clone.classList.add("day-header--continuation");
-          clone.removeAttribute("data-day-header");
-          item.parentElement.insertBefore(clone, item);
+          plannedInsertions.push({ header, item });
           lastColumn = col;
         } else if (col !== lastColumn) {
           lastColumn = col;
         }
       });
     });
+  });
+  plannedInsertions.forEach(({ header, item }) => {
+    const clone = header.cloneNode(true);
+    clone.classList.add("day-header--continuation");
+    clone.removeAttribute("data-day-header");
+    item.parentElement.insertBefore(clone, item);
   });
 }
 
@@ -385,15 +391,19 @@ function styles(fontFamily) {
          atomic (break-inside: avoid) so a day too tall for its column
          got shoved to the next one, leaving a gap at the bottom of
          the current column. Now the day container allows breaks; the
-         atomic units are the header + each event row. A day whose
-         first event is near the bottom of a column will split, with
-         later events flowing into the next column. The continuation
-         header at the top of the next column is inserted by JS
-         after layout (see ensureContinuationHeaders). */
-      .day {
-        margin-bottom: 1em;
+         atomic units are the header + each event row.
+         v0.4.4: tightened the inter-day margins — a 1em bottom margin
+         on every .day was becoming column-end whitespace whenever a
+         day happened to be the last item in a column. Zero out the
+         between-day gap on the container itself and lean on
+         .day-header's own margin-top + bottom-border to space days
+         apart. This gives the column packer 1em more per day-boundary
+         to fit the next event. */
+      .day { margin: 0; }
+      .day + .day > .day-header,
+      .day > .day-header--continuation {
+        margin-top: 0.55em;
       }
-      .day:last-child { margin-bottom: 0; }
       .day-header,
       .rail-row,
       .all-day {
@@ -522,7 +532,12 @@ function styles(fontFamily) {
       .rail-content {
         flex: 1 1 0;
         min-width: 0;
-        padding: 0.12em 0 0.72em 0.85em;
+        /* v0.4.4: bottom padding shrunk (0.72em -> 0.42em) so each row
+           consumes less vertical space. In CSS multi-column with
+           column-fill: auto every wasted em at the bottom of a row is
+           lost trailing whitespace when the next row can't fit; a
+           tighter row lets more events squeeze in per column. */
+        padding: 0.12em 0 0.42em 0.85em;
       }
       .rail-title {
         font-weight: 800;
