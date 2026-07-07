@@ -425,20 +425,54 @@ function styles(fontFamily) {
       .all-day {
         break-inside: avoid;
       }
-      /* Continuation header injected by JS at the top of a column
-         when a day's events split across columns. Rendered in a
-         lighter shade so the reader can tell it's not a fresh day. */
+      /* Continuation breadcrumb injected by JS at the top of a
+         column when a day's events split across columns. v0.4.9:
+         explicitly styled as a small dashed breadcrumb (not a scaled
+         down clone of the real header) so the eye doesn't read it as
+         a duplicate date on the panel. The children spans keep their
+         DOM text but shrink to a single muted one-liner. */
       .day-header--continuation {
-        opacity: 0.7;
         margin-top: 0;
+        gap: 0.3em;
+        align-items: center;
+        border-bottom: 1px dashed var(--text-muted, var(--muted, #8A8678));
+        padding-bottom: 0.08em;
+        opacity: 1;
+        color: var(--text-muted, var(--muted, #8A8678));
+      }
+      .day-header--continuation .day-num {
+        font-size: 0.9em;
+        font-weight: 600;
+        line-height: 1;
+        color: var(--text-muted, var(--muted, #8A8678));
+      }
+      .day.is-today .day-header--continuation .day-num {
+        color: var(--text-muted, var(--muted, #8A8678));
+      }
+      .day-header--continuation .day-dow {
+        font-size: 0.75em;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+      }
+      .day-header--continuation .day-month {
+        font-size: 0.72em;
+        font-weight: 500;
+      }
+      .day-header--continuation::before {
+        content: "↳";
+        font-size: 0.9em;
+        color: var(--text-muted, var(--muted, #8A8678));
+        margin-right: 0.15em;
+        line-height: 1;
       }
       .day-header--continuation::after {
-        content: " (cont.)";
-        font-size: 0.55em;
-        letter-spacing: 0.06em;
+        content: "cont.";
+        font-size: 0.62em;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--text-muted, var(--muted, #8A8678));
         margin-left: 0.35em;
+        opacity: 0.8;
       }
 
       .day-header {
