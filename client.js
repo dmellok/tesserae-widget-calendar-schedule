@@ -87,7 +87,13 @@ function ensureContinuationHeaders(shadow) {
         : [block];
       items.forEach((item) => {
         const col = columnOf(item);
-        if (col !== lastColumn && col !== headerColumn) {
+        // v0.4.10: strictly-forward guard. Continuation only fires
+        // when the item lands in a column BEYOND both the header
+        // and every previously-seen item. Prevents a spurious
+        // continuation from firing in the same column as the header
+        // if columnOf mis-measures under dense packing or on wide
+        // panels where sub-pixel offsets don't round cleanly.
+        if (col > headerColumn && col > lastColumn) {
           plannedInsertions.push({ header, item });
           lastColumn = col;
         } else if (col !== lastColumn) {
@@ -506,7 +512,9 @@ function styles(fontFamily) {
         display: flex;
         flex-direction: column;
         gap: 0.24em;
-        margin-top: 0.44em;
+        /* v0.4.10: bumped from 0.44em so the first row breathes
+           away from the day-header's thick border-bottom. */
+        margin-top: 0.7em;
       }
       .all-day {
         display: flex;
@@ -535,7 +543,9 @@ function styles(fontFamily) {
       .rail {
         display: flex;
         flex-direction: column;
-        margin-top: 0.44em;
+        /* v0.4.10: matches .all-day-stack; keeps a consistent gap
+           between the day-header rule and the first event row. */
+        margin-top: 0.7em;
       }
       .rail-row {
         display: flex;
