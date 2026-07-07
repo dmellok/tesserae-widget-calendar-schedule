@@ -105,10 +105,19 @@ def fetch(
     if core is None or core.server_module is None:
         return {"error": "calendar_core plugin not installed.", "days": []}
 
-    try:
-        days_ahead = max(1, int(options.get("days_ahead") or 5))
-    except (TypeError, ValueError):
-        days_ahead = 5
+    # v0.4.3: ``days_ahead`` accepts an integer or the literal "fill"
+    # (r/eink launch feedback, flinkazoid). ``fill`` pulls a year's
+    # worth of events; the client-side auto-column + column-fill flow
+    # then paints as many as physically fit in the cell without
+    # server-side guesswork about the panel size.
+    raw_days = str(options.get("days_ahead") or "").strip().lower()
+    if raw_days == "fill":
+        days_ahead = 365
+    else:
+        try:
+            days_ahead = max(1, int(options.get("days_ahead") or 5))
+        except (TypeError, ValueError):
+            days_ahead = 5
     feeds_filter = _parse_feeds_filter(options.get("feeds_filter") or "")
     show_location = bool(options.get("show_location", True))
     show_dot_color = bool(options.get("show_dot_color", True))

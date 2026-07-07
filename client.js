@@ -16,7 +16,70 @@ export default function render(shadow, ctx) {
   shadow.innerHTML = layout(data, fontFamily);
   if (isAutoColumns(data)) {
     scheduleAutoColumns(shadow);
+  } else {
+    // Fixed-column path still needs the continuation-header pass so a
+    // day whose events split across columns gets a "(cont.)" header at
+    // the top of the secondary column.
+    scheduleContinuationHeaders(shadow);
   }
+}
+
+function scheduleContinuationHeaders(shadow) {
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(() => ensureContinuationHeaders(shadow));
+  } else {
+    ensureContinuationHeaders(shadow);
+  }
+}
+
+/*
+ * v0.4.3 (r/eink launch feedback, flinkazoid): CSS multi-column doesn't
+ * expose per-column break points, so when a day's events flow across a
+ * column boundary the second column starts mid-day with no context.
+ * This pass measures the rendered layout, groups events by column via
+ * their left offset, and injects a cloned day header at the top of any
+ * column that starts mid-day. Runs after fitColumns() has settled the
+ * column count so we only measure once per layout.
+ */
+function ensureContinuationHeaders(shadow) {
+  const days = shadow.querySelector(".days");
+  if (!days) return;
+  // Strip any continuation headers from a previous pass so a resize
+  // that changes the break points doesn't stack duplicates.
+  days.querySelectorAll(".day-header--continuation").forEach((n) => n.remove());
+  const sections = days.querySelectorAll(".day[data-day-id]");
+  sections.forEach((section) => {
+    const header = section.querySelector("[data-day-header]");
+    if (!header) return;
+    // Break points are between direct children of the section that
+    // aren't the header itself. Measure each child's left offset;
+    // when a subsequent child sits in a different column, insert a
+    // continuation header just before it.
+    const eventBlocks = Array.from(section.children).filter(
+      (n) => n !== header && n.getBoundingClientRect
+    );
+    if (eventBlocks.length === 0) return;
+    const headerColumn = Math.round(header.getBoundingClientRect().left);
+    let lastColumn = headerColumn;
+    eventBlocks.forEach((block) => {
+      // ``all-day-stack`` and ``rail`` are wrappers; look inside them.
+      const items = block.classList.contains("all-day-stack") || block.classList.contains("rail")
+        ? Array.from(block.children)
+        : [block];
+      items.forEach((item) => {
+        const col = Math.round(item.getBoundingClientRect().left);
+        if (col !== lastColumn && col !== headerColumn) {
+          const clone = header.cloneNode(true);
+          clone.classList.add("day-header--continuation");
+          clone.removeAttribute("data-day-header");
+          item.parentElement.insertBefore(clone, item);
+          lastColumn = col;
+        } else if (col !== lastColumn) {
+          lastColumn = col;
+        }
+      });
+    });
+  });
 }
 
 function isAutoColumns(data) {
@@ -58,11 +121,15 @@ function fitColumns(shadow) {
     // Check both so the loop stops as soon as the list actually fits.
     const overflowV = days.scrollHeight > days.clientHeight + 1;
     const overflowH = days.scrollWidth > days.clientWidth + 1;
-    if (!overflowV && !overflowH) return;
+    if (!overflowV && !overflowH) {
+      ensureContinuationHeaders(shadow);
+      return;
+    }
   }
   // Fell through the loop: even 4 columns overflow; leave at 4 and let
   // the container clip. Better to show as much as possible than to
   // silently drop back to 1.
+  ensureContinuationHeaders(shadow);
 }
 
 function layout(data, fontFamily) {
@@ -154,9 +221,14 @@ function renderDay(day, timeFormat, showColour) {
     ? `<div class="day-empty">(no events)</div>`
     : "";
   const todayClass = day.is_today ? " is-today" : "";
+  // v0.4.3: stamp a stable id + duplicated header markup on data-*
+  // attributes so JS can clone the day header at the top of any
+  // secondary column when the day's events span a column boundary
+  // (see ensureContinuationHeaders).
+  const dayId = escapeAttr(day.date_iso || `${day.month_short}-${day.day_of_month}`);
   return `
-    <section class="day${todayClass}">
-      <header class="day-header">
+    <section class="day${todayClass}" data-day-id="${dayId}">
+      <header class="day-header" data-day-header>
         <span class="day-num">${escapeHtml(String(day.day_of_month ?? ""))}</span>
         <span class="day-dow">${escapeHtml(day.day_of_week_short || "")}</span>
         <span class="day-month">${escapeHtml(day.month_short || "")}</span>
@@ -309,11 +381,39 @@ function styles(fontFamily) {
       .frame[data-cols="3"] .days { column-count: 3; }
       .frame[data-cols="4"] .days { column-count: 4; }
 
+      /* v0.4.3 (r/eink launch feedback, flinkazoid): days used to be
+         atomic (break-inside: avoid) so a day too tall for its column
+         got shoved to the next one, leaving a gap at the bottom of
+         the current column. Now the day container allows breaks; the
+         atomic units are the header + each event row. A day whose
+         first event is near the bottom of a column will split, with
+         later events flowing into the next column. The continuation
+         header at the top of the next column is inserted by JS
+         after layout (see ensureContinuationHeaders). */
       .day {
-        break-inside: avoid;
         margin-bottom: 1em;
       }
       .day:last-child { margin-bottom: 0; }
+      .day-header,
+      .rail-row,
+      .all-day {
+        break-inside: avoid;
+      }
+      /* Continuation header injected by JS at the top of a column
+         when a day's events split across columns. Rendered in a
+         lighter shade so the reader can tell it's not a fresh day. */
+      .day-header--continuation {
+        opacity: 0.7;
+        margin-top: 0;
+      }
+      .day-header--continuation::after {
+        content: " (cont.)";
+        font-size: 0.55em;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-muted, var(--muted, #8A8678));
+        margin-left: 0.35em;
+      }
 
       .day-header {
         display: flex;
