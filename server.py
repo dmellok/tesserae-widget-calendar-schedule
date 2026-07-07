@@ -28,9 +28,29 @@ def _parse_feeds_filter(s: str) -> list[str] | None:
 
 
 def _resolve_local_tz() -> ZoneInfo:
-    """Read settings.app.timezone and return a ZoneInfo. Falls back to
-    UTC for ``"system"`` (we don't have direct host TZ access from a
-    widget; UTC is the safe default) and for unparseable values."""
+    """Read settings.app.timezone and return a ZoneInfo.
+
+    v0.4.2 (r/eink launch DM feedback): when the app timezone is the
+    literal ``"system"`` (fresh-install / onboarding default), the
+    previous fallback to UTC caused day-grouping to skew. An 8:30 PM
+    EDT event became 00:30 UTC the next calendar day, so the widget
+    bucketed it under Tomorrow instead of Today. Tesserae's core
+    ``app.tz_resolve.app_timezone()`` helper reads ``/etc/localtime``
+    + the ``TZ`` env var to resolve ``"system"`` into a real IANA
+    zone; delegate to it when it's importable, and fall back to UTC
+    only when the widget can't reach the helper (standalone tests).
+    """
+    try:
+        from app.tz_resolve import app_timezone
+
+        resolved = app_timezone()
+        if isinstance(resolved, ZoneInfo):
+            return resolved
+        key = getattr(resolved, "key", None)
+        if isinstance(key, str) and key:
+            return ZoneInfo(key)
+    except Exception:
+        pass
     try:
         store = current_app.config.get("SETTINGS_STORE")
         raw = ""
@@ -103,6 +123,18 @@ def fetch(
     except (TypeError, ValueError):
         max_total = 0
     show_title = bool(options.get("show_title", True))
+
+    def _coerce_scale(name: str, default: float, lo: float, hi: float) -> float:
+        try:
+            v = float(options.get(name) if options.get(name) not in (None, "") else default)
+        except (TypeError, ValueError):
+            v = default
+        return max(lo, min(hi, v))
+
+    event_title_scale = _coerce_scale("event_title_scale", 1.0, 0.7, 1.5)
+    event_time_scale = _coerce_scale("event_time_scale", 1.0, 0.7, 1.5)
+    event_location_scale = _coerce_scale("event_location_scale", 0.9, 0.6, 1.3)
+    day_row_padding_em = _coerce_scale("day_row_padding_em", 0.5, 0.0, 1.5)
     # ``columns`` accepts the string "auto" (client grows 1..4 until the
     # list fits) or an integer 1..4 (fixed count). Anything else falls
     # back to auto.
@@ -257,6 +289,10 @@ def fetch(
         "show_dot_color": show_dot_color,
         "show_title": show_title,
         "columns": columns,
+        "event_title_scale": event_title_scale,
+        "event_time_scale": event_time_scale,
+        "event_location_scale": event_location_scale,
+        "day_row_padding_em": day_row_padding_em,
         "days": days_out,
         "count": sum(len(d["events"]) for d in days_out),
         "truncated": truncated,

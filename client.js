@@ -105,9 +105,18 @@ function layout(data, fontFamily) {
     ? Math.max(1, Math.min(4, Math.floor(rawCols)))
     : 1;
   const showColour = data.show_dot_color !== false;
+  // v0.4.2: per-content-type sizing knobs. Numbers are already clamped
+  // server-side; the CSS custom props flow into rail-title / time-chip
+  // / rail-sub / day-row padding so the user's cell config drives what
+  // feels tight vs spacious without touching the widget CSS.
+  const titleScale = numberOr(data.event_title_scale, 1.0);
+  const timeScale = numberOr(data.event_time_scale, 1.0);
+  const locScale = numberOr(data.event_location_scale, 0.9);
+  const rowPad = numberOr(data.day_row_padding_em, 0.5);
+  const styleAttr = `--title-scale:${titleScale};--time-scale:${timeScale};--loc-scale:${locScale};--row-pad:${rowPad}em;`;
   return `
     ${styles(fontFamily)}
-    <div class="frame" data-cols="${columns}">
+    <div class="frame" data-cols="${columns}" style="${styleAttr}">
       ${titleHtml}
       <div class="body">
         <div class="days">
@@ -210,6 +219,11 @@ function formatChipLabel(iso, format) {
 
 function pad2(n) {
   return String(n).padStart(2, "0");
+}
+
+function numberOr(v, fallback) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 function styles(fontFamily) {
@@ -378,7 +392,7 @@ function styles(fontFamily) {
       .time-chip {
         color: var(--surface, #FCFBF7);
         font-weight: 800;
-        font-size: 0.72em;
+        font-size: calc(0.72em * var(--time-scale, 1));
         padding: 0.18em 0.36em;
         border-radius: 5px;
         white-space: nowrap;
@@ -414,12 +428,21 @@ function styles(fontFamily) {
         font-weight: 800;
         line-height: 1.14;
         overflow-wrap: break-word;
+        font-size: calc(1em * var(--title-scale, 1));
       }
       .rail-sub {
-        font-size: 0.72em;
+        font-size: calc(0.72em * var(--loc-scale, 0.9) / 0.9);
         font-weight: 600;
         color: var(--text-muted, var(--muted, #8A8678));
         margin-top: 0.06em;
+      }
+      /* Day row spacing: user-tunable padding above + below each
+         day block, expressed in em so it scales with the auto-fit
+         font size. Default 0.5em roughly matches the pre-v0.4.2
+         built-in spacing. */
+      .day {
+        padding-top: var(--row-pad, 0.5em);
+        padding-bottom: var(--row-pad, 0.5em);
       }
 
       .day-empty {

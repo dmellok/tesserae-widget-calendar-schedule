@@ -1,7 +1,7 @@
 {
   "tesserae_compat": "1.x",
   "name": "Calendar, Schedule",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "kind": "widget",
   "description": "Timeline-rail agenda view. Lists upcoming events grouped by day, with a thin ink rail connecting per-event nodes and a coloured start-time chip carrying the feed accent. Titles wrap freely so the widget stays legible from 1 up to 4 narrow columns on wide e-ink panels. Pulls from the same calendar_core feeds as the other calendar_* widgets.",
   "icon": "ph-list-bullets",
@@ -37,6 +37,10 @@
         {
           "value": "14",
           "label": "Two weeks"
+        },
+        {
+          "value": "30",
+          "label": "A month (30 days)"
         }
       ]
     },
@@ -103,6 +107,42 @@
       "label": "Show widget title",
       "default": true,
       "help": "Renders a 'Schedule' header row at the top so the cell matches the Spectra widget chrome. Off uses the entire cell for the agenda."
+    },
+    {
+      "name": "event_title_scale",
+      "type": "number",
+      "label": "Event title size (× base)",
+      "default": 1.0,
+      "min": 0.7,
+      "max": 1.5,
+      "help": "Multiplier on the event title font size. 1.0 = default. Raise for more legible titles at the cost of visible event count."
+    },
+    {
+      "name": "event_time_scale",
+      "type": "number",
+      "label": "Event time size (× base)",
+      "default": 1.0,
+      "min": 0.7,
+      "max": 1.5,
+      "help": "Multiplier on the start-time chip font size."
+    },
+    {
+      "name": "event_location_scale",
+      "type": "number",
+      "label": "Event location size (× base)",
+      "default": 0.9,
+      "min": 0.6,
+      "max": 1.3,
+      "help": "Multiplier on the location string beneath each event title."
+    },
+    {
+      "name": "day_row_padding_em",
+      "type": "number",
+      "label": "Day row spacing (em)",
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.5,
+      "help": "Vertical padding above + below each day block, in em units so it scales with the auto-fit font size. Lower packs more events on the panel."
     },
     {
       "name": "columns",
