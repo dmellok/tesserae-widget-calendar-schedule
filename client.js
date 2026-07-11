@@ -536,6 +536,7 @@ function styles(fontFamily) {
       }
       .all-day-title {
         flex: 1 1 auto;
+        font-size: calc(1em * var(--title-scale, 1));
         text-overflow: ellipsis;
         overflow: hidden;
       }
