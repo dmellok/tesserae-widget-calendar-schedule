@@ -536,7 +536,12 @@ function styles(fontFamily) {
       }
       .all-day-title {
         flex: 1 1 auto;
-        font-size: calc(1em * var(--title-scale, 1));
+        /* .all-day sets font-size:0.82em to keep the ALL DAY pill + row
+           padding compact, but that also shrank the title below the timed
+           .rail-title at the same slider value (issue #4). Divide the 0.82
+           back out so the title matches timed event titles exactly, while the
+           pill and padding stay compact. */
+        font-size: calc(1em / 0.82 * var(--title-scale, 1));
         text-overflow: ellipsis;
         overflow: hidden;
       }
