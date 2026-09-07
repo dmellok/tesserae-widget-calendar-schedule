@@ -1,0 +1,11 @@
+{
+  "title": "Zeitplan",
+  "all_day": "GANZTAGS",
+  "until": "bis",
+  "no_events_day": "(keine Einträge)",
+  "no_upcoming": "Keine weiteren Einträge.",
+  "untitled": "(unbenannt)",
+  "capped": "abgeschnitten",
+  "capped_help": "Weitere Einträge verfügbar; Einstellung \"Max events across the whole agenda\" erhöhen, um diese anzuzeigen.",
+  "continued": "fort."
+}
