@@ -5,7 +5,7 @@
   "no_events_day": "(inga händelser)",
   "no_upcoming": "Inga kommande händelser.",
   "untitled": "(titel saknas)",
-  "capped": "bergränsad",
+  "capped": "begränsad",
   "capped_help": "Fler händelser finns; höj \"Max events across the whole agenda\" för att visa dessa.",
   "continued": "forts."
 }
