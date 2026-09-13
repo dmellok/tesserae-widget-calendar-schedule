@@ -8,11 +8,13 @@ import assert from "node:assert/strict";
 import {
   FALLBACK_SYMBOL,
   SYMBOL_TABLE,
+  allDayEndBadge,
   clampScale,
   colorBucket,
   colorToSymbol,
   normalizeColumns,
   readOptions,
+  renderDay,
   styleShortLabel,
 } from "../client.js";
 
@@ -138,6 +140,49 @@ function hsvToHex(h, s, v) {
   return `#${to8(r)}${to8(g)}${to8(b)}`;
 }
 
+// allDayEndBadge: a multi-day all-day event is rendered on every day the
+// server bucketed it into; the badge marks the copies that carry on past
+// the day they sit under. It must NOT hide those copies (the bug where a
+// holiday showed only on its first day and left the rest blank).
+const T = (_key, fallback) => fallback;
+const holiday = { summary: "Holiday", end_date: "2026-08-20" };
+assert.equal(allDayEndBadge(holiday, "2026-08-18"), "AUG 20", "first day badges the end");
+assert.equal(allDayEndBadge(holiday, "2026-08-19"), "AUG 20", "middle day still badges the end");
+assert.equal(allDayEndBadge(holiday, "2026-08-20"), "", "last day of the span has nothing left to point at");
+assert.equal(allDayEndBadge(holiday, "2026-08-21"), "", "past the end (shouldn't happen) stays quiet");
+assert.equal(
+  allDayEndBadge({ summary: "Holiday", end_date: "2026-09-02" }, "2026-08-31"),
+  "SEP 2",
+  "crosses a month boundary"
+);
+assert.equal(allDayEndBadge({ summary: "Bin day" }, "2026-08-18"), "", "single-day event: no end_date, no badge");
+assert.equal(allDayEndBadge({ end_date: "" }, "2026-08-18"), "", "blank end_date");
+assert.equal(allDayEndBadge({ end_date: "junk" }, "2026-08-18"), "", "unparsable end_date");
+assert.equal(allDayEndBadge({ end_date: "2026-08-20" }, ""), "", "missing day date");
+assert.equal(allDayEndBadge(holiday, "2026-08-18", "fr"), "AOÛ 20", "badge month follows the panel locale");
+assert.equal(allDayEndBadge(holiday, "2026-08-18", "de"), "AUG 20", "German short month");
+
+// renderDay must paint an all-day bar on EVERY day the server bucketed
+// the event into — never the "(no events)" placeholder. The placeholder
+// showing up on a day that carries an all-day copy is the exact symptom
+// the span-dedupe caused.
+const middleDay = {
+  date_iso: "2026-08-19", day_of_month: 19, day_of_week_short: "WED", month_short: "AUG",
+  is_today: false,
+  events: [{ summary: "Public Holiday", all_day: true, colour: "#36c", end_date: "2026-08-20" }],
+};
+const middleHtml = renderDay(middleDay, "24h", true, false, "short", T, "en");
+assert.match(middleHtml, /all-day-title">Public Holiday</, "middle day of a span still paints the bar");
+assert.match(middleHtml, /all-day-span">&rarr; AUG 20</, "and badges where it ends");
+assert.doesNotMatch(middleHtml, /day-empty/, "a day carrying an all-day event is never '(no events)'");
+
+const lastDayHtml = renderDay({ ...middleDay, date_iso: "2026-08-20" }, "24h", true, false, "short", T, "en");
+assert.match(lastDayHtml, /all-day-title">Public Holiday</, "last day of a span paints the bar too");
+assert.doesNotMatch(lastDayHtml, /all-day-span/, "no badge once the span ends here");
+
+const emptyHtml = renderDay({ ...middleDay, events: [] }, "24h", true, false, "short", T, "en");
+assert.match(emptyHtml, /day-empty/, "a genuinely empty day still says so");
+
 console.log("clamp_check.mjs: all assertions passed");
 
 // v0.7.0 locale-aware day labels + chip time (issue tesserae#279).
@@ -153,8 +198,8 @@ assert.equal(dayLabel(mon, "weekday", "full", "sk"), "Pondelok", "Slovak full, c
 assert.equal(dayLabel(mon, "month", "short", "fr"), "SEP");
 assert.equal(dayLabel(mon, "weekday", "full", "fr"), "Lundi");
 assert.equal(dayLabel({ day_of_week_short: "TUE" }, "weekday", "short", "sk"), "TUE", "no date_iso falls back to server label");
-assert.equal(formatChipLabel("2026-09-07T15:00:00+02:00", "24h", "sk"), "15:00");
-assert.match(formatChipLabel("2026-09-07T15:30:00+02:00", "12h", "en"), /^3:30pm$/);
-const skChip = formatChipLabel("2026-09-07T15:00:00+02:00", "12h", "sk");
+assert.equal(formatChipLabel("2026-09-07T15:00:00", "24h", "sk"), "15:00");
+assert.match(formatChipLabel("2026-09-07T15:30:00", "12h", "en"), /^3:30pm$/);
+const skChip = formatChipLabel("2026-09-07T15:00:00", "12h", "sk");
 assert.match(skChip, /^3\S{0,4}$/, `Slovak 12h chip stays compact: ${skChip}`);
 console.log("locale checks ok");

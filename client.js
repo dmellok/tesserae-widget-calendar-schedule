@@ -416,14 +416,13 @@ function layout(data, options, fontFamily, ctx) {
   const labelStyle = ["short", "minimal", "full"].includes(options.date_label_style) ? options.date_label_style : "short";
   const contLabel = cssString(t("continued", "cont."));
   const styleAttr = `--event-title-scale:${eventTitleScale};--time-scale:${timeScale};--loc-scale:${locScale};--row-pad:${rowPad}em;--dashboard-title-scale:${dashboardTitleScale};--header-scale:${headerScale};--cont-label:&quot;${escapeHtml(contLabel)}&quot;;`;
-  const spans = allDaySpans(days);
   return `
     ${styles(fontFamily)}
     <div class="frame" data-cols="${columns}" style="${styleAttr}">
       ${titleHtml}
       <div class="body">
         <div class="days">
-          ${days.map((d, i) => renderDay(d, tf, showColour, useSymbol, labelStyle, i, spans, days, t, locale)).join("")}
+          ${days.map((d) => renderDay(d, tf, showColour, useSymbol, labelStyle, t, locale)).join("")}
         </div>
       </div>
     </div>
@@ -444,41 +443,37 @@ function renderTitle(truncated, t) {
 }
 
 // The server spreads a multi-day all-day event into every covered day's
-// bucket (same summary/colour/location on each copy — there's no shared
-// id to dedupe by, so content equality is the key). Map each key to the
-// first and last day index it appears at so renderDay only shows the
-// label once, badged with the date it runs through.
-function allDaySpans(days) {
-  const first = new Map();
-  const last = new Map();
-  days.forEach((d, i) => {
-    (Array.isArray(d.events) ? d.events : [])
-      .filter((e) => e && e.all_day === true)
-      .forEach((ev) => {
-        const key = allDaySpanKey(ev);
-        if (!first.has(key)) first.set(key, i);
-        last.set(key, i);
-      });
-  });
-  return { first, last };
+// bucket and stamps each copy with ``end_date`` (the true inclusive last
+// local date, not clamped to the window). Badge the copies that carry on
+// past the day they're rendered under: "-> AUG 20", with the month in
+// the panel's locale like the day headers.
+//
+// v0.5.2 to 0.7.1 inferred the span by scanning every day for copies
+// with equal summary/colour/location, drawing the label only on the
+// first index and hiding it everywhere else. Two bugs: every later day
+// of a holiday rendered blank, and two same-titled all-day events on
+// non-adjacent days (a weekly "Bin day") collapsed into one bogus span.
+export function allDayEndBadge(ev, dateIso, locale) {
+  const end = ev && typeof ev.end_date === "string" ? ev.end_date : "";
+  // Both are YYYY-MM-DD, so a string compare is a date compare.
+  if (!end || !dateIso || end <= dateIso) return "";
+  const date = parseDateIso(end);
+  if (!date) return "";
+  const month = dayLabel({ date_iso: end }, "month", "short", locale);
+  return `${month} ${date.getDate()}`;
 }
 
-function allDaySpanKey(ev) {
-  return `${ev.summary}|${ev.colour || ""}|${ev.location || ""}`;
-}
-
-function renderDay(day, timeFormat, showColour, useSymbol, labelStyle, dayIndex, spans, allDays, t, locale) {
+export function renderDay(day, timeFormat, showColour, useSymbol, labelStyle, t, locale) {
   const events = Array.isArray(day.events) ? day.events : [];
-  const allDayHere = events.filter((e) => e && e.all_day === true);
-  const allDay = allDayHere.filter((e) => spans.first.get(allDaySpanKey(e)) === dayIndex);
+  const allDay = events.filter((e) => e && e.all_day === true);
   const timed = events.filter((e) => e && e.all_day !== true);
   const allDayHtml = allDay.length
-    ? `<div class="all-day-stack">${allDay.map((e) => renderAllDay(e, showColour, spans, allDays, dayIndex, t, locale)).join("")}</div>`
+    ? `<div class="all-day-stack">${allDay.map((e) => renderAllDay(e, showColour, day.date_iso, t, locale)).join("")}</div>`
     : "";
   const timedHtml = timed.length
     ? `<div class="rail">${timed.map((e) => renderTimed(e, timeFormat, showColour, useSymbol, t, locale)).join("")}</div>`
     : "";
-  const empty = !allDayHere.length && !timed.length
+  const empty = !allDay.length && !timed.length
     ? `<div class="day-empty">${escapeHtml(t("no_events_day", "(no events)"))}</div>`
     : "";
   const todayClass = day.is_today ? " is-today" : "";
@@ -501,14 +496,13 @@ function renderDay(day, timeFormat, showColour, useSymbol, labelStyle, dayIndex,
   `;
 }
 
-function renderAllDay(ev, showColour, spans, allDays, dayIndex, t, locale) {
+function renderAllDay(ev, showColour, dateIso, t, locale) {
   const title = escapeHtml(ev.summary || t("untitled", "(untitled)"));
   const bg = showColour && ev.colour ? ev.colour : "var(--text-primary, #1B1A16)";
   const styleAttr = `style="background:${escapeAttr(bg)}"`;
-  const lastIndex = spans.last.get(allDaySpanKey(ev));
-  const lastDay = lastIndex > dayIndex ? allDays[lastIndex] : null;
-  const spanBadge = lastDay
-    ? `<span class="all-day-span">&rarr; ${escapeHtml(dayLabel(lastDay, "month", "short", locale))} ${escapeHtml(String(lastDay.day_of_month ?? ""))}</span>`
+  const endLabel = allDayEndBadge(ev, dateIso, locale);
+  const spanBadge = endLabel
+    ? `<span class="all-day-span">&rarr; ${escapeHtml(endLabel)}</span>`
     : "";
   return `
     <div class="all-day" ${styleAttr}>
