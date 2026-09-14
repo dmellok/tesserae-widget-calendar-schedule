@@ -687,3 +687,71 @@ def test_only_and_hide_combine() -> None:
     """An event must match "only" and must not match "hide"."""
     out = _run({"only_keywords": "cafe rosa", "hide_keywords": "lunch"})
     assert _titles(out) == ["Standup"]
+
+
+# -- location style (issue #11) -------------------------------------------
+
+
+def test_shorten_location_takes_the_part_before_the_first_comma() -> None:
+    assert server._shorten_location("Cafe Rosa, 12 High St, Springfield") == "Cafe Rosa"
+    assert server._shorten_location("Cafe Rosa\n12 High St") == "Cafe Rosa"
+    assert server._shorten_location("  Cafe Rosa  ") == "Cafe Rosa"
+    assert server._shorten_location("Cafe Rosa") == "Cafe Rosa"
+    # No leading part: keep the whole string rather than show nothing.
+    assert server._shorten_location(", 12 High St") == ", 12 High St"
+    assert server._shorten_location("") == ""
+
+
+def _run_location(options: dict[str, Any], location: str) -> dict[str, Any]:
+    app, _registry, core, _settings = _stub_app()
+    core.server_module.load_events.return_value = [
+        {
+            "summary": "Lunch",
+            "start": _future_today_iso(1),
+            "end": _future_today_iso(2),
+            "all_day": False,
+            "feed_name": "y",
+            "feed_colour": "#abc",
+            "location": location,
+        }
+    ]
+    with patch.object(server, "current_app", app):
+        return server.fetch(options={"days_ahead": "1", **options}, settings={}, ctx={})
+
+
+def test_location_style_defaults_to_full_and_keeps_the_whole_string() -> None:
+    out = _run_location({}, "Cafe Rosa, 12 High St")
+    assert out["location_style"] == "full"
+    assert out["days"][0]["events"][0]["location"] == "Cafe Rosa, 12 High St"
+
+
+def test_location_style_line_is_forwarded_and_leaves_the_text_alone() -> None:
+    """One-line clipping is CSS; the server only forwards the style."""
+    out = _run_location({"location_style": "line"}, "Cafe Rosa, 12 High St")
+    assert out["location_style"] == "line"
+    assert out["days"][0]["events"][0]["location"] == "Cafe Rosa, 12 High St"
+
+
+def test_location_style_short_trims_at_the_first_comma() -> None:
+    out = _run_location({"location_style": "short"}, "Cafe Rosa, 12 High St")
+    assert out["location_style"] == "short"
+    assert out["days"][0]["events"][0]["location"] == "Cafe Rosa"
+
+
+def test_location_style_unknown_falls_back_to_full() -> None:
+    out = _run_location({"location_style": "tiny"}, "Cafe Rosa, 12 High St")
+    assert out["location_style"] == "full"
+    assert out["days"][0]["events"][0]["location"] == "Cafe Rosa, 12 High St"
+
+
+def test_short_location_is_what_the_keyword_filters_see() -> None:
+    """The filters act on what the panel shows: with the address trimmed
+    off, a hide word that only matched the address no longer fires."""
+    hidden_by_address = _run_location(
+        {"hide_keywords": "high st"}, "Cafe Rosa, 12 High St"
+    )
+    assert _titles(hidden_by_address) == []
+    kept = _run_location(
+        {"hide_keywords": "high st", "location_style": "short"}, "Cafe Rosa, 12 High St"
+    )
+    assert _titles(kept) == ["Lunch"]

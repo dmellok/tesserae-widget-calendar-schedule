@@ -17,6 +17,7 @@ so always English) remain as a fallback for an older client.js.
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,23 @@ def _parse_keywords(s: str) -> list[str]:
     produce an empty term, which would otherwise match every event and
     silently empty the agenda."""
     return [k.strip().lower() for k in (s or "").split(",") if k.strip()]
+
+
+LOCATION_STYLES = ("full", "line", "short")
+
+
+def _shorten_location(location: str) -> str:
+    """The part of a location before its first comma or line break.
+
+    Calendar clients tend to write locations as "<place>, <street>,
+    <town>, <country>" (Google) or "<place>\n<address>" (Apple), and on
+    a small panel the address eats the cell. The leading part is the
+    place name, which is what someone glancing at the panel wants. A
+    location that starts with a comma has no leading part; keep it whole
+    rather than showing nothing."""
+    whole = str(location or "").strip()
+    head = re.split(r"[,\n]", whole, maxsplit=1)[0].strip()
+    return head or whole
 
 
 def _matches_keyword(row: dict[str, Any], keywords: list[str]) -> bool:
@@ -152,6 +170,9 @@ def fetch(
     hide_keywords = _parse_keywords(options.get("hide_keywords") or "")
     only_keywords = _parse_keywords(options.get("only_keywords") or "")
     show_location = bool(options.get("show_location", True))
+    location_style = str(options.get("location_style") or "full").strip().lower()
+    if location_style not in LOCATION_STYLES:
+        location_style = "full"
     show_dot_color = bool(options.get("show_dot_color", True))
     use_symbol_dot = bool(options.get("use_symbol_dot", False))
     time_format = (options.get("time_format") or "auto").strip().lower()
@@ -240,8 +261,14 @@ def fetch(
             "colour": (ev.get("feed_colour") if show_dot_color else None),
             "feed_name": ev.get("feed_name") or "",
         }
+        # Shortened before the keyword filters run, for the same reason
+        # locations are only matched when shown: the filters must not
+        # act on text the panel doesn't display.
         if show_location and ev.get("location"):
-            row["location"] = ev.get("location")
+            location = str(ev.get("location"))
+            if location_style == "short":
+                location = _shorten_location(location)
+            row["location"] = location
 
         # Keyword filters. Matched against the event as the operator sees it,
         # so a location only counts when locations are being shown; filtering
@@ -324,6 +351,7 @@ def fetch(
         "tz": str(tz),
         "time_format": time_format,
         "show_location": show_location,
+        "location_style": location_style,
         "show_dot_color": show_dot_color,
         "use_symbol_dot": use_symbol_dot,
         "show_title": show_title,

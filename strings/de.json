@@ -7,5 +7,6 @@
   "untitled": "(ohne Titel)",
   "capped": "begrenzt",
   "capped_help": "Weitere Termine waren verfügbar; erhöhen Sie \"Max events across the whole agenda\", um sie anzuzeigen.",
-  "continued": "Forts."
+  "continued": "Forts.",
+  "week_n": "KW {n}"
 }

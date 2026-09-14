@@ -7,5 +7,6 @@
   "untitled": "(sans titre)",
   "capped": "limité",
   "capped_help": "D'autres événements étaient disponibles ; augmentez « Max events across the whole agenda » pour les afficher.",
-  "continued": "suite"
+  "continued": "suite",
+  "week_n": "S{n}"
 }

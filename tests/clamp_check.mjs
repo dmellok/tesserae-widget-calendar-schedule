@@ -203,3 +203,46 @@ assert.match(formatChipLabel("2026-09-07T15:30:00", "12h", "en"), /^3:30pm$/);
 const skChip = formatChipLabel("2026-09-07T15:00:00", "12h", "sk");
 assert.match(skChip, /^3\S{0,4}$/, `Slovak 12h chip stays compact: ${skChip}`);
 console.log("locale checks ok");
+
+// v0.9.0 week number (issue #12) + location style (issue #11).
+const { isoWeek, normalizeWeekNumber, weekLabel } = await import("../client.js");
+assert.equal(isoWeek(parseDateIso("2026-09-14")), 38, "a Monday in September 2026");
+assert.equal(isoWeek(parseDateIso("2026-09-20")), 38, "the Sunday of the same week");
+assert.equal(isoWeek(parseDateIso("2026-09-21")), 39, "next Monday rolls over");
+assert.equal(isoWeek(parseDateIso("2026-01-01")), 1, "2026 starts on a Thursday, so week 1");
+assert.equal(isoWeek(parseDateIso("2027-01-01")), 53, "1 Jan 2027 (Friday) is still week 53 of 2026");
+assert.equal(isoWeek(parseDateIso("2024-12-30")), 1, "30 Dec 2024 (Monday) is week 1 of 2025");
+assert.equal(isoWeek(parseDateIso("2021-01-03")), 53, "3 Jan 2021 (Sunday) is week 53 of 2020");
+
+assert.equal(normalizeWeekNumber(undefined), "off", "missing is off");
+assert.equal(normalizeWeekNumber("WEEK_START"), "week_start", "case-insensitive");
+assert.equal(normalizeWeekNumber("every_day"), "every_day");
+assert.equal(normalizeWeekNumber("yes"), "off", "unknown is off");
+
+const mon14 = { date_iso: "2026-09-14" };
+const sun = { date_iso: "2026-09-20" };
+const nextMon = { date_iso: "2026-09-21" };
+assert.equal(weekLabel(mon14, "off", null, T), "", "off draws nothing");
+assert.equal(weekLabel(mon14, "week_start", null, T), "W38", "first day always badges");
+assert.equal(weekLabel(sun, "week_start", 38, T), "", "same week as the previous day: quiet");
+assert.equal(weekLabel(nextMon, "week_start", 38, T), "W39", "week changes: badge");
+assert.equal(weekLabel(sun, "every_day", 38, T), "W38", "every_day repeats it");
+assert.equal(weekLabel({ day_of_week_short: "MON" }, "every_day", null, T), "", "no date_iso, no badge");
+const sv = (key, fallback) => (key === "week_n" ? "V{n}" : fallback);
+assert.equal(weekLabel(mon14, "every_day", null, sv), "V38", "prefix follows the panel language");
+const de = (key, fallback) => (key === "week_n" ? "KW {n}" : fallback);
+assert.equal(weekLabel(mon14, "every_day", null, de), "KW 38");
+
+const weekDay = { ...middleDay, date_iso: "2026-09-14", day_of_month: 14, day_of_week_short: "MON", month_short: "SEP", events: [] };
+assert.match(renderDay(weekDay, "24h", true, false, "short", T, "en", "W38"), /day-week">W38<\/span>\s*<span class="day-month">SEP</, "badge sits before the month");
+assert.doesNotMatch(renderDay(weekDay, "24h", true, false, "short", T, "en"), /day-week/, "no badge by default");
+
+const timedDay = {
+  ...weekDay,
+  events: [{ summary: "Lunch", all_day: false, colour: "#36c", start_local: "2026-09-14T12:00:00", end_local: "2026-09-14T13:00:00", location: "Cafe Rosa, 12 High St" }],
+};
+const timedHtml = renderDay(timedDay, "24h", true, false, "short", T, "en");
+assert.match(timedHtml, /rail-until">until 13:00<\/span><span class="rail-sep">·<\/span><span class="rail-loc">Cafe Rosa, 12 High St</, "until / separator / location are separate spans");
+const noLocHtml = renderDay({ ...timedDay, events: [{ ...timedDay.events[0], location: "" }] }, "24h", true, false, "short", T, "en");
+assert.match(noLocHtml, /rail-until">until 13:00<\/span><\/div>/, "no location: no separator");
+console.log("week number + location style checks ok");

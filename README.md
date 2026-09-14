@@ -31,6 +31,8 @@ Make sure you have at least one feed configured in **Widgets → Calendar Feeds*
 
   Both lists match against what the panel actually shows: with **Show event locations** off, locations aren't matched either, so a filter can't drop events for reasons you can't see on the screen.
 - **Show event locations**: toggles the lighter-grey location text after the title.
+- **Location style**: how much of the location fits under each event. **Full** wraps the whole string. **One line** keeps it to a single row and trims the end with an ellipsis. **Before the first comma** shows only the leading part, so "Cafe Rosa, 12 High St, Springfield" reads "Cafe Rosa" (a line break counts as a comma, for calendars that put the address on its own line). Useful on small panels where addresses eat the cell. The keyword filters match the shortened text, so they still only act on what the panel shows.
+- **Week number**: adds the ISO 8601 week number (`W38`) to the day header beside the month. **First day of each week** marks the first day shown from each week, so it appears once per week even when Monday is skipped for having no events; **Every day** repeats it on every header. Off by default. The label follows the panel language (`KW 38`, `S38`, `V38`).
 - **Show per-feed colour dot**: turn off for pure typography (useful on 1-bit panels).
 - **Use symbol dots**: replaces the round bullet on each timed event with a shape picked from the feed colour, so two calendars stay apart once the panel has quantised both to the same ink. Off by default.
 - **Time format**: Auto, 24-hour, or 12-hour.
@@ -63,7 +65,7 @@ The multi-column flow reads column-first: day 1 top-left, day 2 below it, wrap t
 
 ## Layout
 
-Each day is a header (big day number + weekday, muted month right-aligned) with a thick ink underline, followed by any all-day events as coloured bars, then a timeline rail of timed events. A multi-day all-day event shows on every day it covers; the days it carries on past are badged with the date it ends (`→ AUG 20`). Each timed event has a coloured start-time chip on the left, a rail-node dot on a 2px vertical spine, and a wrapping title with `until <end time> · <location>` beneath. Days stay atomic across columns (never split).
+Each day is a header (big day number + weekday, muted month right-aligned, optional week number) with a thick ink underline, followed by any all-day events as coloured bars, then a timeline rail of timed events. A multi-day all-day event shows on every day it covers; the days it carries on past are badged with the date it ends (`→ AUG 20`). Each timed event has a coloured start-time chip on the left, a rail-node dot on a 2px vertical spine, and a wrapping title with `until <end time> · <location>` beneath. Days stay atomic across columns (never split).
 
 ```
 6  MON                                                   JUL

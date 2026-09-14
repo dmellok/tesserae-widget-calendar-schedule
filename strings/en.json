@@ -7,5 +7,6 @@
   "untitled": "(untitled)",
   "capped": "capped",
   "capped_help": "More events were available; raise \"Max events across the whole agenda\" to show them.",
-  "continued": "cont."
+  "continued": "cont.",
+  "week_n": "W{n}"
 }

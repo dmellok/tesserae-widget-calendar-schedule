@@ -78,6 +78,38 @@ export function dayLabel(day, unit, style, locale) {
   return full.slice(0, 3).toUpperCase();
 }
 
+// ISO 8601 week number for a local-midnight Date: weeks start on Monday
+// and week 1 holds the year's first Thursday, so 1 Jan can sit in week 52
+// or 53 of the previous year and 31 Dec in week 1 of the next. Done in UTC
+// arithmetic so a DST change inside the year can't shift the day count.
+export function isoWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dow = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dow);
+  const yearStart = Date.UTC(d.getUTCFullYear(), 0, 1);
+  return Math.ceil(((d.getTime() - yearStart) / 86400000 + 1) / 7);
+}
+
+// "off" (default), "week_start" (the first day shown from each ISO week)
+// or "every_day". Anything else is off.
+export function normalizeWeekNumber(raw) {
+  const s = String(raw ?? "off").trim().toLowerCase();
+  return s === "week_start" || s === "every_day" ? s : "off";
+}
+
+// Week badge text for one day header, or "" when the mode or this day's
+// position in the list doesn't call for one. ``prevWeek`` is the ISO week
+// of the previous rendered day (null for the first), so with skipped
+// empty days the badge lands on whichever day of the week shows first.
+export function weekLabel(day, mode, prevWeek, t) {
+  if (mode === "off") return "";
+  const date = parseDateIso(day && day.date_iso);
+  if (!date) return "";
+  const week = isoWeek(date);
+  if (mode === "week_start" && prevWeek === week) return "";
+  return t("week_n", "W{n}").replace("{n}", String(week));
+}
+
 // ctx.t() when the host provides it (Tesserae >= 0.364 with this widget's
 // ``locales`` declared); otherwise the English fallback text.
 function translator(ctx) {
@@ -414,15 +446,25 @@ function layout(data, options, fontFamily, ctx) {
   const dashboardTitleScale = clampScale(options.title_scale, 1.0, 0.01, 10.0);
   const headerScale = clampScale(options.header_scale, 1.0, 0.01, 10.0);
   const labelStyle = ["short", "minimal", "full"].includes(options.date_label_style) ? options.date_label_style : "short";
+  const weekMode = normalizeWeekNumber(options.week_number);
+  // Server-side option (the "short" style trims the string before the
+  // keyword filters run), forwarded in the payload like show_location.
+  const locStyle = ["full", "line", "short"].includes(data.location_style) ? data.location_style : "full";
   const contLabel = cssString(t("continued", "cont."));
+  let prevWeek = null;
   const styleAttr = `--event-title-scale:${eventTitleScale};--time-scale:${timeScale};--loc-scale:${locScale};--row-pad:${rowPad}em;--dashboard-title-scale:${dashboardTitleScale};--header-scale:${headerScale};--cont-label:&quot;${escapeHtml(contLabel)}&quot;;`;
   return `
     ${styles(fontFamily)}
-    <div class="frame" data-cols="${columns}" style="${styleAttr}">
+    <div class="frame" data-cols="${columns}" data-loc="${locStyle}" style="${styleAttr}">
       ${titleHtml}
       <div class="body">
         <div class="days">
-          ${days.map((d) => renderDay(d, tf, showColour, useSymbol, labelStyle, t, locale)).join("")}
+          ${days.map((d) => {
+            const week = weekLabel(d, weekMode, prevWeek, t);
+            const date = parseDateIso(d && d.date_iso);
+            if (date) prevWeek = isoWeek(date);
+            return renderDay(d, tf, showColour, useSymbol, labelStyle, t, locale, week);
+          }).join("")}
         </div>
       </div>
     </div>
@@ -463,7 +505,7 @@ export function allDayEndBadge(ev, dateIso, locale) {
   return `${month} ${date.getDate()}`;
 }
 
-export function renderDay(day, timeFormat, showColour, useSymbol, labelStyle, t, locale) {
+export function renderDay(day, timeFormat, showColour, useSymbol, labelStyle, t, locale, week = "") {
   const events = Array.isArray(day.events) ? day.events : [];
   const allDay = events.filter((e) => e && e.all_day === true);
   const timed = events.filter((e) => e && e.all_day !== true);
@@ -487,7 +529,7 @@ export function renderDay(day, timeFormat, showColour, useSymbol, labelStyle, t,
       <header class="day-header" data-day-header>
         <span class="day-num">${escapeHtml(String(day.day_of_month ?? ""))}</span>
         <span class="day-dow">${escapeHtml(dayLabel(day, "weekday", labelStyle, locale))}</span>
-        <span class="day-month">${escapeHtml(dayLabel(day, "month", labelStyle, locale))}</span>
+        <span class="day-meta">${week ? `<span class="day-week">${escapeHtml(week)}</span>` : ""}<span class="day-month">${escapeHtml(dayLabel(day, "month", labelStyle, locale))}</span></span>
       </header>
       ${allDayHtml}
       ${timedHtml}
@@ -522,9 +564,11 @@ function renderTimed(ev, timeFormat, showColour, useSymbol, t, locale) {
   // so the symbols collapse to the fallback bullet along with the chip fill.
   const node = useSymbol ? colorToSymbol(ev.colour) : FALLBACK_SYMBOL;
   const chipStyle = `style="background:${escapeAttr(bg)}"`;
-  const sub = endLabel
-    ? `${escapeHtml(t("until", "until"))} ${escapeHtml(endLabel)}${ev.location ? ` · ${escapeHtml(ev.location)}` : ""}`
-    : (ev.location ? escapeHtml(ev.location) : "");
+  // The location gets its own span so the one-line location styles can
+  // clip it with an ellipsis while the "until" part stays whole.
+  const untilPart = endLabel ? `<span class="rail-until">${escapeHtml(t("until", "until"))} ${escapeHtml(endLabel)}</span>` : "";
+  const locPart = ev.location ? `<span class="rail-loc">${escapeHtml(ev.location)}</span>` : "";
+  const sub = [untilPart, locPart].filter(Boolean).join(`<span class="rail-sep">·</span>`);
   return `
     <div class="rail-row">
       <div class="time-gutter">
@@ -708,7 +752,8 @@ function styles(fontFamily) {
         font-weight: 600;
         letter-spacing: 0.06em;
       }
-      .day-header--continuation .day-month {
+      .day-header--continuation .day-month,
+      .day-header--continuation .day-week {
         font-size: 0.72em;
         font-weight: 500;
       }
@@ -731,8 +776,12 @@ function styles(fontFamily) {
 
       .day-header {
         display: flex;
+        /* A header too wide for a narrow column used to overflow and
+           paint into the neighbouring column; wrapping drops the muted
+           week / month labels onto a second right-aligned line instead. */
+        flex-wrap: wrap;
         align-items: baseline;
-        gap: 0.55em;
+        gap: 0.1em 0.55em;
         border-bottom: 3px solid var(--text-primary, #1B1A16);
         padding-bottom: 0.15em;
       }
@@ -749,10 +798,24 @@ function styles(fontFamily) {
         font-weight: 800;
         letter-spacing: 0.06em;
       }
-      .day-month {
+      /* Month plus the optional ISO week badge (week_number option),
+         one right-aligned unit so they wrap together when the header
+         is too wide for its column. */
+      .day-meta {
         margin-left: auto;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.7em;
+      }
+      .day-month {
         font-size: calc(0.78em * var(--header-scale, 1));
         font-weight: 700;
+        color: var(--text-muted, var(--muted, #8A8678));
+      }
+      .day-week {
+        font-size: calc(0.78em * var(--header-scale, 1));
+        font-weight: 700;
+        letter-spacing: 0.04em;
         color: var(--text-muted, var(--muted, #8A8678));
       }
 
@@ -880,6 +943,29 @@ function styles(fontFamily) {
         color: var(--text-muted, var(--muted, #8A8678));
         margin-top: 0.06em;
       }
+      .rail-sep { margin: 0 0.3em; }
+      /* location_style "line" / "short": keep the sub line to one row and
+         trim the location with an ellipsis. The "until" part is fixed
+         width; the location takes what's left. "full" (default) wraps. */
+      .frame[data-loc="line"] .rail-sub,
+      .frame[data-loc="short"] .rail-sub {
+        display: flex;
+        align-items: baseline;
+        white-space: nowrap;
+      }
+      .frame[data-loc="line"] .rail-until,
+      .frame[data-loc="short"] .rail-until,
+      .frame[data-loc="line"] .rail-sep,
+      .frame[data-loc="short"] .rail-sep {
+        flex: 0 0 auto;
+      }
+      .frame[data-loc="line"] .rail-loc,
+      .frame[data-loc="short"] .rail-loc {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
       /* Day row spacing: user-tunable padding above + below each
          day block, expressed in em so it scales with the auto-fit
          font size. Default 0.5em roughly matches the pre-v0.4.2
@@ -906,6 +992,7 @@ function styles(fontFamily) {
         .title-pill { display: none; }
         .rail-sub { display: none; }
         .day-month { display: none; }
+        .day-week { display: none; }
         .all-day-label { display: none; }
       }
       @container (max-width: 240px) {

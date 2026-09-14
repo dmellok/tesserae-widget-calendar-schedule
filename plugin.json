@@ -1,7 +1,7 @@
 {
   "tesserae_compat": "1.x",
   "name": "Calendar, Schedule",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "locales": ["en", "de", "fr", "sv"],
   "kind": "widget",
   "description": "Timeline-rail agenda view. Lists upcoming events grouped by day, with a thin ink rail connecting per-event nodes and a coloured start-time chip carrying the feed accent. Titles wrap freely so the widget stays legible from 1 up to 4 narrow columns on wide e-ink panels. Pulls from the same calendar_core feeds as the other calendar_* widgets.",
@@ -128,6 +128,18 @@
       "default": true
     },
     {
+      "name": "location_style",
+      "type": "select",
+      "label": "Location style",
+      "default": "full",
+      "help": "How much of the location fits under each event. Full wraps the whole string. One line keeps it to a single row and trims the end with an ellipsis. Before the first comma shows only the leading part, so \"Cafe Rosa, 12 High St, Springfield\" reads \"Cafe Rosa\"; handy on small panels where addresses eat the cell.",
+      "choices": [
+        {"value": "full", "label": "Full (wraps)"},
+        {"value": "line", "label": "One line, trimmed with an ellipsis"},
+        {"value": "short", "label": "Before the first comma, one line"}
+      ]
+    },
+    {
       "name": "show_dot_color",
       "type": "boolean",
       "label": "Show per-feed colour dot",
@@ -166,6 +178,18 @@
         {"value": "full", "label": "Full word (Monday, January)"},
         {"value": "short", "label": "Short (MON, JAN)"},
         {"value": "minimal", "label": "Minimal (M, JA)"}
+      ]
+    },
+    {
+      "name": "week_number",
+      "type": "select",
+      "label": "Week number",
+      "default": "off",
+      "help": "Adds the ISO 8601 week number (W38) to the day header beside the month. First day of each week marks the first day shown from each week, so it appears once per week even when Monday is skipped for having no events.",
+      "choices": [
+        {"value": "off", "label": "Off"},
+        {"value": "week_start", "label": "First day of each week"},
+        {"value": "every_day", "label": "Every day"}
       ]
     },
     {
