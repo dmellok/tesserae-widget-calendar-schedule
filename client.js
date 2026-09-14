@@ -447,9 +447,9 @@ function layout(data, options, fontFamily, ctx) {
   const headerScale = clampScale(options.header_scale, 1.0, 0.01, 10.0);
   const labelStyle = ["short", "minimal", "full"].includes(options.date_label_style) ? options.date_label_style : "short";
   const weekMode = normalizeWeekNumber(options.week_number);
-  // Server-side option (the "short" style trims the string before the
+  // Server-side option (the "short" styles trim the string before the
   // keyword filters run), forwarded in the payload like show_location.
-  const locStyle = ["full", "line", "short"].includes(data.location_style) ? data.location_style : "full";
+  const locStyle = ["full", "line", "short_wrap", "short"].includes(data.location_style) ? data.location_style : "full";
   const contLabel = cssString(t("continued", "cont."));
   let prevWeek = null;
   const styleAttr = `--event-title-scale:${eventTitleScale};--time-scale:${timeScale};--loc-scale:${locScale};--row-pad:${rowPad}em;--dashboard-title-scale:${dashboardTitleScale};--header-scale:${headerScale};--cont-label:&quot;${escapeHtml(contLabel)}&quot;;`;
@@ -946,7 +946,7 @@ function styles(fontFamily) {
       .rail-sep { margin: 0 0.3em; }
       /* location_style "line" / "short": keep the sub line to one row and
          trim the location with an ellipsis. The "until" part is fixed
-         width; the location takes what's left. "full" (default) wraps. */
+         width; the location takes what's left. "full" and "short_wrap" wrap. */
       .frame[data-loc="line"] .rail-sub,
       .frame[data-loc="short"] .rail-sub {
         display: flex;

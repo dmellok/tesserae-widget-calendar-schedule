@@ -738,6 +738,14 @@ def test_location_style_short_trims_at_the_first_comma() -> None:
     assert out["days"][0]["events"][0]["location"] == "Cafe Rosa"
 
 
+def test_location_style_short_wrap_trims_at_the_first_comma_too() -> None:
+    """Same trim as "short"; the client lets the result wrap instead of
+    clipping it to one row."""
+    out = _run_location({"location_style": "short_wrap"}, "Cafe Rosa, 12 High St")
+    assert out["location_style"] == "short_wrap"
+    assert out["days"][0]["events"][0]["location"] == "Cafe Rosa"
+
+
 def test_location_style_unknown_falls_back_to_full() -> None:
     out = _run_location({"location_style": "tiny"}, "Cafe Rosa, 12 High St")
     assert out["location_style"] == "full"

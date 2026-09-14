@@ -1,7 +1,7 @@
 {
   "tesserae_compat": "1.x",
   "name": "Calendar, Schedule",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "locales": ["en", "de", "fr", "sv"],
   "kind": "widget",
   "description": "Timeline-rail agenda view. Lists upcoming events grouped by day, with a thin ink rail connecting per-event nodes and a coloured start-time chip carrying the feed accent. Titles wrap freely so the widget stays legible from 1 up to 4 narrow columns on wide e-ink panels. Pulls from the same calendar_core feeds as the other calendar_* widgets.",
@@ -132,11 +132,12 @@
       "type": "select",
       "label": "Location style",
       "default": "full",
-      "help": "How much of the location fits under each event. Full wraps the whole string. One line keeps it to a single row and trims the end with an ellipsis. Before the first comma shows only the leading part, so \"Cafe Rosa, 12 High St, Springfield\" reads \"Cafe Rosa\"; handy on small panels where addresses eat the cell.",
+      "help": "How much of the location fits under each event. Full wraps the whole string. One line keeps it to a single row and trims the end with an ellipsis. Before the first comma shows only the leading part, so \"Cafe Rosa, 12 High St, Springfield\" reads \"Cafe Rosa\", either wrapping or clipped to one row; handy on small panels where addresses eat the cell.",
       "choices": [
         {"value": "full", "label": "Full (wraps)"},
-        {"value": "line", "label": "One line, trimmed with an ellipsis"},
-        {"value": "short", "label": "Before the first comma, one line"}
+        {"value": "line", "label": "One line (trimmed with an ellipsis)"},
+        {"value": "short_wrap", "label": "Before the first comma (wraps)"},
+        {"value": "short", "label": "Before the first comma (trimmed with an ellipsis)"}
       ]
     },
     {

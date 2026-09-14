@@ -42,7 +42,7 @@ def _parse_keywords(s: str) -> list[str]:
     return [k.strip().lower() for k in (s or "").split(",") if k.strip()]
 
 
-LOCATION_STYLES = ("full", "line", "short")
+LOCATION_STYLES = ("full", "line", "short_wrap", "short")
 
 
 def _shorten_location(location: str) -> str:
@@ -266,7 +266,7 @@ def fetch(
         # act on text the panel doesn't display.
         if show_location and ev.get("location"):
             location = str(ev.get("location"))
-            if location_style == "short":
+            if location_style in ("short", "short_wrap"):
                 location = _shorten_location(location)
             row["location"] = location
 
