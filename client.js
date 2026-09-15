@@ -240,6 +240,24 @@ export function colorToSymbol(hex) {
 
 export const SYMBOL_TABLE = { symbols: SYMBOLS, names: BUCKET_NAMES };
 
+// v0.11.0: the rail node for a timed event. A symbol set on the feed in
+// Calendar Feeds wins outright: the operator chose it to mean "this
+// calendar", so it shows whether or not symbol dots are on. Without one,
+// use_symbol_dot picks a shape from the colour and otherwise the bullet.
+export function nodeFor(ev, useSymbol) {
+  const own = typeof ev.symbol === "string" ? ev.symbol.trim() : "";
+  if (own) return own;
+  return useSymbol ? colorToSymbol(ev.colour) : FALLBACK_SYMBOL;
+}
+
+// All-day events draw a bar instead of a rail node, so their feed symbol
+// goes in front of the title, matching the bundled calendar widgets.
+export function allDayTitle(ev, t) {
+  const own = typeof ev.symbol === "string" ? ev.symbol.trim() : "";
+  const title = ev.summary || t("untitled", "(untitled)");
+  return own ? `${own} ${title}` : title;
+}
+
 export default function render(shadow, ctx) {
   const data = (ctx && ctx.data) || {};
   const options = readOptions(ctx);
@@ -539,7 +557,7 @@ export function renderDay(day, timeFormat, showColour, useSymbol, labelStyle, t,
 }
 
 function renderAllDay(ev, showColour, dateIso, t, locale) {
-  const title = escapeHtml(ev.summary || t("untitled", "(untitled)"));
+  const title = escapeHtml(allDayTitle(ev, t));
   const bg = showColour && ev.colour ? ev.colour : "var(--text-primary, #1B1A16)";
   const styleAttr = `style="background:${escapeAttr(bg)}"`;
   const endLabel = allDayEndBadge(ev, dateIso, locale);
@@ -567,8 +585,9 @@ function renderTimed(ev, timeFormat, showColour, useSymbol, t, locale) {
     ? "var(--text-muted, var(--muted, #8A8678))"
     : showColour && ev.colour ? ev.colour : "var(--text-primary, #1B1A16)";
   // ev.colour is already None-ed out server-side when show_dot_color is off,
-  // so the symbols collapse to the fallback bullet along with the chip fill.
-  const node = useSymbol ? colorToSymbol(ev.colour) : FALLBACK_SYMBOL;
+  // so the colour-derived symbols collapse to the fallback bullet along with
+  // the chip fill. A feed's own symbol is unaffected by that.
+  const node = escapeHtml(nodeFor(ev, useSymbol));
   const chipStyle = `style="background:${escapeAttr(bg)}"`;
   // The location gets its own span so the one-line location styles can
   // clip it with an ellipsis while the "until" part stays whole.

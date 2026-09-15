@@ -866,3 +866,36 @@ def test_short_location_is_what_the_keyword_filters_see() -> None:
         {"hide_keywords": "high st", "location_style": "short"}, "Cafe Rosa, 12 High St"
     )
     assert _titles(kept) == ["Lunch"]
+
+
+def test_feed_symbol_is_forwarded_and_kept_out_of_the_summary() -> None:
+    """A feed's symbol (Calendar Feeds, Tesserae 0.418.0) rides on the row as
+    ``symbol`` so the client can draw it as the rail node. It is not folded
+    into the summary, so the keyword filters don't match it."""
+    app, _registry, core, _settings = _stub_app()
+    core.server_module.load_events.return_value = [
+        {
+            "summary": "Standup",
+            "start": _future_today_iso(1),
+            "end": _future_today_iso(2),
+            "all_day": False,
+            "feed_colour": "#ff0000",
+            "feed_symbol": " 💼 ",
+        },
+        {
+            "summary": "Dentist",
+            "start": _future_today_iso(3),
+            "end": _future_today_iso(4),
+            "all_day": False,
+            "feed_colour": "#0000ff",
+        },
+    ]
+    with patch.object(server, "current_app", app):
+        # Three days, not one: near midnight UTC an event a few hours out
+        # lands on tomorrow, and a one-day window would drop it for reasons
+        # that have nothing to do with the symbol.
+        out = server.fetch(
+            options={"days_ahead": "3", "hide_keywords": "💼"}, settings={}, ctx={}
+        )
+    rows = [(r["summary"], r["symbol"]) for d in out["days"] for r in d["events"]]
+    assert rows == [("Standup", "💼"), ("Dentist", "")]

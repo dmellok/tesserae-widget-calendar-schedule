@@ -34,7 +34,7 @@ Make sure you have at least one feed configured in **Widgets → Calendar Feeds*
 - **Location style**: how much of the location fits under each event. **Full** wraps the whole string. **One line** keeps it to a single row and trims the end with an ellipsis. **Before the first comma** shows only the leading part, so "Cafe Rosa, 12 High St, Springfield" reads "Cafe Rosa" (a line break counts as a comma, for calendars that put the address on its own line), in a wrapping or a one-line, ellipsis-trimmed variant. Useful on small panels where addresses eat the cell. The keyword filters match the shortened text, so they still only act on what the panel shows.
 - **Week number**: adds the ISO 8601 week number (`W38`) to the day header beside the month. **First day of each week** marks the first day shown from each week, so it appears once per week even when Monday is skipped for having no events; **Every day** repeats it on every header. Off by default. The label follows the panel language (`KW 38`, `S38`, `V38`).
 - **Show per-feed colour dot**: turn off for pure typography (useful on 1-bit panels).
-- **Use symbol dots**: replaces the round bullet on each timed event with a shape picked from the feed colour, so two calendars stay apart once the panel has quantised both to the same ink. Off by default.
+- **Use symbol dots**: replaces the round bullet on each timed event with a shape picked from the feed colour, so two calendars stay apart once the panel has quantised both to the same ink. Off by default. A symbol set on the feed itself (below) always wins over these.
 - **Time format**: Auto, 24-hour, or 12-hour.
 - **Skip days with no events**: when off, every day in the window renders even if empty.
 - **Always show today**: keeps today's column even when it has no events, so the current date is always the first column. Only matters with **Skip days with no events** on.
@@ -49,6 +49,10 @@ Feed colour is carried by the start-time chip and the all-day bar. Turning off *
 Two colours in the same bucket get the same shape. The slices are 45 degrees wide, so the first one covers red through orange to yellow: on the stock Google Calendar palette that puts Tomato, Tangerine and Banana together, and the 11 stock colours resolve to 8 distinct shapes. If you're relying on this, set feed colours that sit well apart on the wheel rather than picking three warm ones.
 
 All-day events render as a filled bar rather than a rail node, so they aren't affected. Turning off **Show per-feed colour dot** drops the colour before the client sees it, which collapses every symbol back to the plain bullet.
+
+### Per-feed symbols
+
+From Tesserae 0.418.0, each feed in Settings → Widgets → Calendar Feeds takes an optional **Symbol** (an emoji or a short marker) beside its colour. When a feed has one, this widget draws it as the rail node of every timed event from that feed, whatever **Use symbol dots** is set to, and puts it in front of the title on all-day bars. Feeds without one behave as before. This is the way to tell calendars apart by choice rather than by colour bucket, and it works for Home Assistant calendars too.
 
 ### Sensible column defaults per panel
 

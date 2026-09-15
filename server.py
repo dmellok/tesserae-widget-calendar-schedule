@@ -266,6 +266,10 @@ def fetch(
             "all_day": all_day,
             "colour": (ev.get("feed_colour") if show_dot_color else None),
             "feed_name": ev.get("feed_name") or "",
+            # The feed's own marker from Calendar Feeds (Tesserae 0.418.0),
+            # "" on older servers and on feeds without one. Kept separate
+            # from the summary so the keyword filters never match it.
+            "symbol": str(ev.get("feed_symbol") or "").strip(),
         }
         if past:
             row["past"] = True
@@ -313,7 +317,11 @@ def fetch(
     for offset in range(days_ahead):
         d = today_local + timedelta(days=offset)
         items = buckets.get(d) or []
-        if skip_empty_days and not items and not (always_show_today and d == today_local):
+        if (
+            skip_empty_days
+            and not items
+            and not (always_show_today and d == today_local)
+        ):
             continue
         # All-day events first, then chronological by start.
         items.sort(key=lambda r: (not r["all_day"], r.get("start_local") or ""))

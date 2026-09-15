@@ -9,9 +9,11 @@ import {
   FALLBACK_SYMBOL,
   SYMBOL_TABLE,
   allDayEndBadge,
+  allDayTitle,
   clampScale,
   colorBucket,
   colorToSymbol,
+  nodeFor,
   normalizeColumns,
   readOptions,
   renderDay,
@@ -256,3 +258,20 @@ assert.match(pastHtml, /time-chip" style="background:var\(--text-muted/, "past c
 assert.doesNotMatch(timedHtml, /is-past/, "an unflagged row is not marked");
 assert.match(timedHtml, /time-chip" style="background:#36c"/, "an unflagged row keeps its feed colour");
 console.log("keep_past_today checks ok");
+
+// v0.11.0: a feed's own symbol (Calendar Feeds) is the rail node whether or
+// not symbol dots are on; without one the old behaviour stands.
+const t = (_k, fallback) => fallback;
+assert.equal(nodeFor({ symbol: "💼", colour: "#ff0000" }, true), "💼", "feed symbol beats the colour bucket");
+assert.equal(nodeFor({ symbol: "💼", colour: "#ff0000" }, false), "💼", "feed symbol shows with symbol dots off");
+assert.equal(nodeFor({ symbol: " ", colour: "#ff0000" }, true), colorToSymbol("#ff0000"), "blank symbol falls back to the bucket");
+assert.equal(nodeFor({ colour: "#ff0000" }, false), FALLBACK_SYMBOL, "no symbol, dots off: bullet");
+assert.equal(nodeFor({ symbol: "💼", colour: null }, false), "💼", "feed symbol survives show_dot_color off");
+assert.equal(allDayTitle({ symbol: "🎒", summary: "Assembly" }, t), "🎒 Assembly", "all-day bar prefixes the symbol");
+assert.equal(allDayTitle({ summary: "Assembly" }, t), "Assembly", "all-day bar without a symbol is untouched");
+assert.equal(allDayTitle({ symbol: "🎒" }, t), "🎒 (untitled)", "symbol still leads the untitled placeholder");
+const symbolDay = { date_iso: "2026-09-16", day_of_month: 16, month_short: "Sep", events: [
+  { summary: "Standup", all_day: false, start_local: "2026-09-16T09:00:00", symbol: "💼", colour: "#ff0000" },
+] };
+assert.ok(renderDay(symbolDay, "24h", true, false, "short", t, "en").includes('<span class="rail-node">💼</span>'), "renderDay draws the feed symbol as the node");
+console.log("symbol checks ok");
