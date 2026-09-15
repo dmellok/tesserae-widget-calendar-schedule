@@ -152,6 +152,109 @@ def test_currently_running_timed_event_still_shows() -> None:
     assert out["days"][0]["events"][0]["summary"] == "Conference call"
 
 
+def _ended_today_event(now: datetime) -> dict[str, Any] | None:
+    """A timed event that ended earlier today (UTC), or None when the
+    test runs too close to midnight for one to exist."""
+    if now.hour < 2:
+        return None
+    return {
+        "summary": "Morning standup",
+        "start": (now - timedelta(hours=2)).isoformat(),
+        "end": (now - timedelta(hours=1)).isoformat(),
+        "all_day": False,
+    }
+
+
+def test_keep_past_today_keeps_events_that_ended_earlier_today() -> None:
+    """With ``keep_past_today`` on, an event that already ended today stays
+    on today's bucket and is flagged ``past`` so the client can mute it."""
+    app, _registry, core, _settings = _stub_app()
+    now = datetime.now(UTC)
+    ended = _ended_today_event(now)
+    if ended is None:
+        return
+    core.server_module.load_events.return_value = [ended]
+    with patch.object(server, "current_app", app):
+        out = server.fetch(
+            options={"days_ahead": "5", "keep_past_today": True}, settings={}, ctx={}
+        )
+    assert out["count"] == 1
+    assert out["days"][0]["is_today"] is True
+    row = out["days"][0]["events"][0]
+    assert row["summary"] == "Morning standup"
+    assert row["past"] is True
+    assert "start_local" in row and "end_local" in row
+
+
+def test_keep_past_today_still_drops_events_that_ended_before_today() -> None:
+    """The option is about today only: yesterday's events go regardless."""
+    app, _registry, core, _settings = _stub_app()
+    now = datetime.now(UTC)
+    yesterday_noon = datetime.combine(
+        (now - timedelta(days=1)).date(), time(12, 0), tzinfo=UTC
+    )
+    core.server_module.load_events.return_value = [
+        {
+            "summary": "Yesterday's lunch",
+            "start": yesterday_noon.isoformat(),
+            "end": (yesterday_noon + timedelta(hours=1)).isoformat(),
+            "all_day": False,
+        },
+    ]
+    with patch.object(server, "current_app", app):
+        out = server.fetch(
+            options={"days_ahead": "5", "keep_past_today": True}, settings={}, ctx={}
+        )
+    assert out["count"] == 0
+    assert out["days"] == []
+
+
+def test_keep_past_today_does_not_flag_running_or_future_events() -> None:
+    """Only ended events carry ``past``; a running one and a later one
+    render as normal rows, and the ended one sorts first by start."""
+    app, _registry, core, _settings = _stub_app()
+    now = datetime.now(UTC)
+    ended = _ended_today_event(now)
+    if ended is None:
+        return
+    core.server_module.load_events.return_value = [
+        {
+            "summary": "Later",
+            "start": _future_today_iso(1),
+            "end": _future_today_iso(2),
+            "all_day": False,
+        },
+        {
+            "summary": "Running",
+            "start": (now - timedelta(minutes=30)).isoformat(),
+            "end": _future_today_iso(0.5),
+            "all_day": False,
+        },
+        ended,
+    ]
+    with patch.object(server, "current_app", app):
+        out = server.fetch(
+            options={"days_ahead": "5", "keep_past_today": True}, settings={}, ctx={}
+        )
+    rows = out["days"][0]["events"]
+    assert [r["summary"] for r in rows][0] == "Morning standup"
+    assert rows[0].get("past") is True
+    assert all("past" not in r for r in rows[1:])
+
+
+def test_keep_past_today_defaults_off() -> None:
+    """Absent the option the existing behaviour holds: ended events go."""
+    app, _registry, core, _settings = _stub_app()
+    now = datetime.now(UTC)
+    ended = _ended_today_event(now)
+    if ended is None:
+        return
+    core.server_module.load_events.return_value = [ended]
+    with patch.object(server, "current_app", app):
+        out = server.fetch(options={"days_ahead": "5"}, settings={}, ctx={})
+    assert out["count"] == 0
+
+
 def test_multi_day_all_day_event_spans_every_day_it_covers() -> None:
     """A holiday from Friday to Sunday (3 days) should land in Friday,
     Saturday, and Sunday's buckets, not just Friday. iCal carries the

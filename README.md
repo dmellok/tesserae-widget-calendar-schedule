@@ -38,6 +38,7 @@ Make sure you have at least one feed configured in **Widgets → Calendar Feeds*
 - **Time format**: Auto, 24-hour, or 12-hour.
 - **Skip days with no events**: when off, every day in the window renders even if empty.
 - **Always show today**: keeps today's column even when it has no events, so the current date is always the first column. Only matters with **Skip days with no events** on.
+- **Keep today's past events**: keeps today's events on the panel after they have ended, drawn in muted ink without the feed colour, so the day reads as a whole schedule rather than draining away through the afternoon. Off (the default) drops each timed event once its end time passes. Events from earlier days are never shown either way.
 - **Max events per day**: cap each day's row count (0 = show all).
 - **Layout columns**: flow the agenda across 1 to 4 vertical columns so a longer window (say two weeks) fits in a half-height cell without shrinking every row. Defaults to **Auto**, which starts at 1 and grows the column count only until the whole list fits; pick a fixed count (1-4) if you want to lock the layout. Days stay atomic (never split across columns); the browser packs by real content height, not day count.
 

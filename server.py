@@ -178,6 +178,7 @@ def fetch(
     time_format = (options.get("time_format") or "auto").strip().lower()
     skip_empty_days = bool(options.get("skip_empty_days", True))
     always_show_today = bool(options.get("always_show_today", False))
+    keep_past_today = bool(options.get("keep_past_today", False))
     try:
         max_per_day = max(0, int(options.get("max_events_per_day") or 0))
     except (TypeError, ValueError):
@@ -230,7 +231,12 @@ def fetch(
         # showing on the day it happened once 13:30 is gone. Currently-
         # running events (started, not ended) stay visible. Multi-day
         # timed events whose final ``edt`` is also past get dropped here.
-        if not all_day and edt < now_local:
+        # v0.10.0: ``keep_past_today`` keeps the ones that ended earlier
+        # today (flagged ``past`` so the client can mute them) so the day
+        # reads as a whole schedule; anything that ended before today
+        # still goes.
+        past = not all_day and edt < now_local
+        if past and not (keep_past_today and _local_date(edt, tz) == today_local):
             continue
 
         # Compute the local-date span. Multi-day events appear on every
@@ -261,6 +267,8 @@ def fetch(
             "colour": (ev.get("feed_colour") if show_dot_color else None),
             "feed_name": ev.get("feed_name") or "",
         }
+        if past:
+            row["past"] = True
         # Shortened before the keyword filters run, for the same reason
         # locations are only matched when shown: the filters must not
         # act on text the panel doesn't display.

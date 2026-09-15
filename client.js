@@ -559,7 +559,13 @@ function renderTimed(ev, timeFormat, showColour, useSymbol, t, locale) {
   const title = escapeHtml(ev.summary || t("untitled", "(untitled)"));
   const startChip = formatChipLabel(ev.start_local, timeFormat, locale);
   const endLabel = formatChipLabel(ev.end_local, timeFormat, locale);
-  const bg = showColour && ev.colour ? ev.colour : "var(--text-primary, #1B1A16)";
+  // v0.10.0: the server flags events that have already ended when
+  // keep_past_today is on. Those rows drop the feed colour and paint
+  // in muted ink so the eye lands on what is still to come.
+  const past = ev.past === true;
+  const bg = past
+    ? "var(--text-muted, var(--muted, #8A8678))"
+    : showColour && ev.colour ? ev.colour : "var(--text-primary, #1B1A16)";
   // ev.colour is already None-ed out server-side when show_dot_color is off,
   // so the symbols collapse to the fallback bullet along with the chip fill.
   const node = useSymbol ? colorToSymbol(ev.colour) : FALLBACK_SYMBOL;
@@ -570,7 +576,7 @@ function renderTimed(ev, timeFormat, showColour, useSymbol, t, locale) {
   const locPart = ev.location ? `<span class="rail-loc">${escapeHtml(ev.location)}</span>` : "";
   const sub = [untilPart, locPart].filter(Boolean).join(`<span class="rail-sep">·</span>`);
   return `
-    <div class="rail-row">
+    <div class="rail-row${past ? " is-past" : ""}">
       <div class="time-gutter">
         <span class="time-chip" ${chipStyle}>${escapeHtml(startChip || "")}</span>
       </div>
@@ -944,6 +950,17 @@ function styles(fontFamily) {
         margin-top: 0.06em;
       }
       .rail-sep { margin: 0 0.3em; }
+      /* keep_past_today: an event that has already ended keeps its row
+         but in muted ink, with a lighter title weight, so it reads as
+         done without vanishing. The chip fill is switched to the muted
+         colour in renderTimed. */
+      .rail-row.is-past .rail-title {
+        color: var(--text-muted, var(--muted, #8A8678));
+        font-weight: 600;
+      }
+      .rail-row.is-past .rail-node {
+        color: var(--text-muted, var(--muted, #8A8678));
+      }
       /* location_style "line" / "short": keep the sub line to one row and
          trim the location with an ellipsis. The "until" part is fixed
          width; the location takes what's left. "full" and "short_wrap" wrap. */
