@@ -463,6 +463,12 @@ function layout(data, options, fontFamily, ctx) {
   const rowPad = clampScale(options.day_row_padding_em, 0.5, 0.0, 3.0);
   const dashboardTitleScale = clampScale(options.title_scale, 1.0, 0.01, 10.0);
   const headerScale = clampScale(options.header_scale, 1.0, 0.01, 10.0);
+  // v0.12.0: header_scale multiplies the whole day header uniformly, so it
+  // can't change how the weekday/month labels sit against the big date
+  // number (0.41x and 0.34x of it at the defaults). This second knob scales
+  // only the labels, leaving the number alone; 2.0 lands the weekday at the
+  // ~0.83x ratio the continuation breadcrumb already uses.
+  const headerLabelScale = clampScale(options.header_label_scale, 1.0, 0.01, 10.0);
   const labelStyle = ["short", "minimal", "full"].includes(options.date_label_style) ? options.date_label_style : "short";
   const weekMode = normalizeWeekNumber(options.week_number);
   // Server-side option (the "short" styles trim the string before the
@@ -470,7 +476,7 @@ function layout(data, options, fontFamily, ctx) {
   const locStyle = ["full", "line", "short_wrap", "short"].includes(data.location_style) ? data.location_style : "full";
   const contLabel = cssString(t("continued", "cont."));
   let prevWeek = null;
-  const styleAttr = `--event-title-scale:${eventTitleScale};--time-scale:${timeScale};--loc-scale:${locScale};--row-pad:${rowPad}em;--dashboard-title-scale:${dashboardTitleScale};--header-scale:${headerScale};--cont-label:&quot;${escapeHtml(contLabel)}&quot;;`;
+  const styleAttr = `--event-title-scale:${eventTitleScale};--time-scale:${timeScale};--loc-scale:${locScale};--row-pad:${rowPad}em;--dashboard-title-scale:${dashboardTitleScale};--header-scale:${headerScale};--header-label-scale:${headerLabelScale};--cont-label:&quot;${escapeHtml(contLabel)}&quot;;`;
   return `
     ${styles(fontFamily)}
     <div class="frame" data-cols="${columns}" data-loc="${locStyle}" style="${styleAttr}">
@@ -819,7 +825,7 @@ function styles(fontFamily) {
         color: var(--accent-1, var(--accent, #C24F2C));
       }
       .day-dow {
-        font-size: calc(0.95em * var(--header-scale, 1));
+        font-size: calc(0.95em * var(--header-scale, 1) * var(--header-label-scale, 1));
         font-weight: 800;
         letter-spacing: 0.06em;
       }
@@ -833,12 +839,12 @@ function styles(fontFamily) {
         gap: 0.7em;
       }
       .day-month {
-        font-size: calc(0.78em * var(--header-scale, 1));
+        font-size: calc(0.78em * var(--header-scale, 1) * var(--header-label-scale, 1));
         font-weight: 700;
         color: var(--text-muted, var(--muted, #8A8678));
       }
       .day-week {
-        font-size: calc(0.78em * var(--header-scale, 1));
+        font-size: calc(0.78em * var(--header-scale, 1) * var(--header-label-scale, 1));
         font-weight: 700;
         letter-spacing: 0.04em;
         color: var(--text-muted, var(--muted, #8A8678));

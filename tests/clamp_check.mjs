@@ -5,7 +5,7 @@
 // test_columns_clamped_to_one_to_four before the columns/scale
 // handling moved from server.py to client.js.
 import assert from "node:assert/strict";
-import {
+import render, {
   FALLBACK_SYMBOL,
   SYMBOL_TABLE,
   allDayEndBadge,
@@ -275,3 +275,48 @@ const symbolDay = { date_iso: "2026-09-16", day_of_month: 16, month_short: "Sep"
 ] };
 assert.ok(renderDay(symbolDay, "24h", true, false, "short", t, "en").includes('<span class="rail-node">💼</span>'), "renderDay draws the feed symbol as the node");
 console.log("symbol checks ok");
+
+// -- day header label scale (issue #14) ------------------------------------
+// header_scale multiplies the whole header, so it can never change how the
+// weekday/month labels sit against the date number. header_label_scale is the
+// knob that does, and the invariant is that it reaches the three label rules
+// and NOT the number. Asserted against the emitted stylesheet because the
+// ratio is the whole point of the option.
+// An empty agenda short-circuits to the no-events notice, which carries no
+// style attribute, so the fixture needs at least one day.
+const SCALE_DAYS = [{ date_iso: "2026-08-19", day_of_month: 19, weekday: "WED", month: "AUG", events: [] }];
+const newShadow = () => ({ innerHTML: "", querySelector: () => null, querySelectorAll: () => [] });
+const fakeShadow = newShadow();
+render(fakeShadow, {
+  cell: { options: { columns: "1", header_scale: 1.5, header_label_scale: 2 } },
+  data: { days: SCALE_DAYS },
+});
+const css = fakeShadow.innerHTML;
+
+assert.match(css, /--header-scale:1\.5;/, "header_scale reaches the custom prop");
+assert.match(css, /--header-label-scale:2;/, "header_label_scale reaches the custom prop");
+
+for (const [cls, size] of [["day-dow", "0.95em"], ["day-month", "0.78em"], ["day-week", "0.78em"]]) {
+  assert.match(
+    css,
+    new RegExp(`\\.${cls} \\{\\s*font-size: calc\\(${size.replace(".", "\\.")} \\* var\\(--header-scale, 1\\) \\* var\\(--header-label-scale, 1\\)\\)`),
+    `${cls} carries both multipliers`
+  );
+}
+assert.match(
+  css,
+  /\.day-num \{\s*font-size: calc\(2\.3em \* var\(--header-scale, 1\)\);/,
+  "the date number is left out of the label scale"
+);
+assert.match(
+  css,
+  /\.day-header--continuation \.day-dow \{\s*font-size: 0\.75em;/,
+  "the continuation breadcrumb keeps its own fixed sizes"
+);
+
+// Defaults must leave every existing panel pixel-identical.
+const defaultShadow = newShadow();
+render(defaultShadow, { cell: { options: { columns: "1" } }, data: { days: SCALE_DAYS } });
+assert.match(defaultShadow.innerHTML, /--header-label-scale:1;/, "defaults to 1x");
+
+console.log("day header label scale checks ok");

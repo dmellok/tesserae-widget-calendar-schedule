@@ -41,6 +41,7 @@ Make sure you have at least one feed configured in **Widgets → Calendar Feeds*
 - **Keep today's past events**: keeps today's events on the panel after they have ended, drawn in muted ink without the feed colour, so the day reads as a whole schedule rather than draining away through the afternoon. Off (the default) drops each timed event once its end time passes. Events from earlier days are never shown either way.
 - **Max events per day**: cap each day's row count (0 = show all).
 - **Layout columns**: flow the agenda across 1 to 4 vertical columns so a longer window (say two weeks) fits in a half-height cell without shrinking every row. Defaults to **Auto**, which starts at 1 and grows the column count only until the whole list fits; pick a fixed count (1-4) if you want to lock the layout. Days stay atomic (never split across columns); the browser packs by real content height, not day count.
+- **Day header size** and **Day header label size**: the first multiplies the whole day header (date number, weekday, month, week number) together, so the parts keep their proportions. The second scales only the weekday / month / week labels and leaves the date number alone, which is how you fix labels that read too small beside the number. At `2.0` the weekday sits at roughly the proportion the continued-day breadcrumb uses. Both default to `1.0`.
 
 Feed colour is carried by the start-time chip and the all-day bar. Turning off **Show per-feed colour dot** replaces the chip fill with ink for 1-bit panels.
 

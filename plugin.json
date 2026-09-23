@@ -1,7 +1,7 @@
 {
   "tesserae_compat": "1.x",
   "name": "Calendar, Schedule",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "locales": ["en", "de", "fr", "sv"],
   "kind": "widget",
   "description": "Timeline-rail agenda view. Lists upcoming events grouped by day, with a thin ink rail connecting per-event nodes and a coloured start-time chip carrying the feed accent. Titles wrap freely so the widget stays legible from 1 up to 4 narrow columns on wide e-ink panels. Pulls from the same calendar_core feeds as the other calendar_* widgets.",
@@ -220,7 +220,18 @@
       "max": 10.0,
       "step": 0.05,
       "unit": "×",
-      "help": "Multiplier on each day's date/weekday/month header text."
+      "help": "Multiplier on each day's date/weekday/month header text. Scales the whole header together, so the labels keep their proportion to the date number."
+    },
+    {
+      "name": "header_label_scale",
+      "type": "slider",
+      "label": "Day header label size",
+      "default": 1.0,
+      "min": 0.01,
+      "max": 10.0,
+      "step": 0.05,
+      "unit": "×",
+      "help": "Multiplier on the weekday, month and week-number labels only, leaving the big date number where it is. Raise it when the labels read too small beside the number; 2.0 puts the weekday at roughly the proportion the continued-day breadcrumb uses."
     },
     {
       "name": "event_title_scale",
