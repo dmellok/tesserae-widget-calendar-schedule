@@ -175,6 +175,7 @@ def fetch(
         location_style = "full"
     show_dot_color = bool(options.get("show_dot_color", True))
     use_symbol_dot = bool(options.get("use_symbol_dot", False))
+    feed_name_prefix = bool(options.get("feed_name_prefix", False))
     time_format = (options.get("time_format") or "auto").strip().lower()
     skip_empty_days = bool(options.get("skip_empty_days", True))
     always_show_today = bool(options.get("always_show_today", False))
@@ -370,6 +371,7 @@ def fetch(
         "location_style": location_style,
         "show_dot_color": show_dot_color,
         "use_symbol_dot": use_symbol_dot,
+        "feed_name_prefix": feed_name_prefix,
         "show_title": show_title,
         "days": days_out,
         "count": sum(len(d["events"]) for d in days_out),

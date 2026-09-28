@@ -10,6 +10,7 @@ import render, {
   SYMBOL_TABLE,
   allDayEndBadge,
   allDayTitle,
+  eventTitle,
   clampScale,
   colorBucket,
   colorToSymbol,
@@ -270,6 +271,14 @@ assert.equal(nodeFor({ symbol: "💼", colour: null }, false), "💼", "feed sym
 assert.equal(allDayTitle({ symbol: "🎒", summary: "Assembly" }, t), "🎒 Assembly", "all-day bar prefixes the symbol");
 assert.equal(allDayTitle({ summary: "Assembly" }, t), "Assembly", "all-day bar without a symbol is untouched");
 assert.equal(allDayTitle({ symbol: "🎒" }, t), "🎒 (untitled)", "symbol still leads the untitled placeholder");
+
+// v0.13.0: feed name prefix
+assert.equal(eventTitle({ summary: "Standup", feed_name: "Work" }, t), "Standup", "prefix is off unless asked for");
+assert.equal(eventTitle({ summary: "Standup", feed_name: "Work" }, t, true), "Work: Standup", "prefix leads the title when on");
+assert.equal(eventTitle({ summary: "Standup", feed_name: "  " }, t, true), "Standup", "a blank feed name adds nothing");
+assert.equal(eventTitle({ summary: "Standup" }, t, true), "Standup", "a row without a feed name is untouched");
+assert.equal(eventTitle({ feed_name: "Work" }, t, true), "Work: (untitled)", "prefix leads the untitled placeholder too");
+assert.equal(allDayTitle({ symbol: "🎒", summary: "Assembly", feed_name: "School" }, t, true), "🎒 School: Assembly", "all-day bar keeps the symbol ahead of the prefix");
 const symbolDay = { date_iso: "2026-09-16", day_of_month: 16, month_short: "Sep", events: [
   { summary: "Standup", all_day: false, start_local: "2026-09-16T09:00:00", symbol: "💼", colour: "#ff0000" },
 ] };

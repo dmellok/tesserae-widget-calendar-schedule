@@ -35,6 +35,7 @@ Make sure you have at least one feed configured in **Widgets → Calendar Feeds*
 - **Week number**: adds the ISO 8601 week number (`W38`) to the day header beside the month. **First day of each week** marks the first day shown from each week, so it appears once per week even when Monday is skipped for having no events; **Every day** repeats it on every header. Off by default. The label follows the panel language (`KW 38`, `S38`, `V38`).
 - **Show per-feed colour dot**: turn off for pure typography (useful on 1-bit panels).
 - **Use symbol dots**: replaces the round bullet on each timed event with a shape picked from the feed colour, so two calendars stay apart once the panel has quantised both to the same ink. Off by default. A symbol set on the feed itself (below) always wins over these.
+- **Prefix titles with the feed name**: writes the feed's name from Calendar Feeds in front of each event title, so "Standup" reads "Work: Standup". Off by default. Tells calendars apart in words on 1-bit panels where colour can't; a feed symbol, if set, still comes first. The keyword filters match the bare title, not the prefix.
 - **Time format**: Auto, 24-hour, or 12-hour.
 - **Skip days with no events**: when off, every day in the window renders even if empty.
 - **Always show today**: keeps today's column even when it has no events, so the current date is always the first column. Only matters with **Skip days with no events** on.

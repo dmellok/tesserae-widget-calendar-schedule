@@ -460,6 +460,43 @@ def test_use_symbol_dot_defaults_off_and_is_forwarded() -> None:
     assert on_out["use_symbol_dot"] is True
 
 
+def test_feed_name_prefix_defaults_off_and_is_forwarded() -> None:
+    """The client writes the feed name in front of each title only when
+    this is on (issue #15). The prefix is applied client-side so the
+    keyword filters keep matching the bare summary; the server just
+    forwards the flag and leaves ``feed_name`` on every row."""
+    app, _registry, core, _settings = _stub_app()
+    # Noon tomorrow UTC: always in the future, never straddles midnight,
+    # so the row lands in exactly one day bucket whatever the wall clock.
+    noon = datetime.combine(
+        datetime.now(UTC).date() + timedelta(days=1), time(12, 0), tzinfo=UTC
+    )
+    core.server_module.load_events.return_value = [
+        {
+            "summary": "Standup",
+            "start": noon.isoformat(),
+            "end": (noon + timedelta(hours=1)).isoformat(),
+            "all_day": False,
+            "feed_name": "Work",
+        },
+    ]
+    with patch.object(server, "current_app", app):
+        default_out = server.fetch(options={"days_ahead": "3"}, settings={}, ctx={})
+        on_out = server.fetch(
+            options={
+                "days_ahead": "3",
+                "feed_name_prefix": True,
+                "hide_keywords": "work",
+            },
+            settings={},
+            ctx={},
+        )
+    assert default_out["feed_name_prefix"] is False
+    assert on_out["feed_name_prefix"] is True
+    rows = [(r["summary"], r["feed_name"]) for d in on_out["days"] for r in d["events"]]
+    assert rows == [("Standup", "Work")]
+
+
 def test_show_location_off_drops_location_field() -> None:
     app, _registry, core, _settings = _stub_app()
     core.server_module.load_events.return_value = [

@@ -1,7 +1,7 @@
 {
   "tesserae_compat": "1.x",
   "name": "Calendar, Schedule",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "locales": ["en", "de", "fr", "sv"],
   "kind": "widget",
   "description": "Timeline-rail agenda view. Lists upcoming events grouped by day, with a thin ink rail connecting per-event nodes and a coloured start-time chip carrying the feed accent. Titles wrap freely so the widget stays legible from 1 up to 4 narrow columns on wide e-ink panels. Pulls from the same calendar_core feeds as the other calendar_* widgets.",
@@ -160,6 +160,13 @@
       "label": "Use symbol dots",
       "default": false,
       "help": "Replaces the round bullet with a shape picked from the feed colour, so feeds stay apart on 1-bit panels."
+    },
+    {
+      "name": "feed_name_prefix",
+      "type": "boolean",
+      "label": "Prefix titles with the feed name",
+      "default": false,
+      "help": "Writes the feed's name from Calendar Feeds in front of each event title, so \"Standup\" reads \"Work: Standup\". Tells calendars apart in words on 1-bit panels where colour can't."
     },
     {
       "name": "time_format",

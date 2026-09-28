@@ -250,11 +250,22 @@ export function nodeFor(ev, useSymbol) {
   return useSymbol ? colorToSymbol(ev.colour) : FALLBACK_SYMBOL;
 }
 
+// v0.13.0: the event title as the panel shows it. With feed_name_prefix
+// on, the feed's name from Calendar Feeds leads the title ("Work:
+// Standup"), which tells calendars apart in words on 1-bit panels
+// where colour can't. The prefix is added here rather than in
+// server.py so the keyword filters keep matching the bare title.
+export function eventTitle(ev, t, feedPrefix = false) {
+  const title = ev.summary || t("untitled", "(untitled)");
+  const feed = feedPrefix && typeof ev.feed_name === "string" ? ev.feed_name.trim() : "";
+  return feed ? `${feed}: ${title}` : title;
+}
+
 // All-day events draw a bar instead of a rail node, so their feed symbol
 // goes in front of the title, matching the bundled calendar widgets.
-export function allDayTitle(ev, t) {
+export function allDayTitle(ev, t, feedPrefix = false) {
   const own = typeof ev.symbol === "string" ? ev.symbol.trim() : "";
-  const title = ev.summary || t("untitled", "(untitled)");
+  const title = eventTitle(ev, t, feedPrefix);
   return own ? `${own} ${title}` : title;
 }
 
@@ -452,6 +463,7 @@ function layout(data, options, fontFamily, ctx) {
   // Defaults off (see plugin.json), so this reads === true rather than the
   // !== false the default-on flags above use.
   const useSymbol = data.use_symbol_dot === true;
+  const feedPrefix = data.feed_name_prefix === true;
   // v0.4.2: per-content-type sizing knobs, clamped client-side (moved
   // from server.py's _coerce_scale — options carries the raw slider
   // value). The CSS custom props flow into rail-title / time-chip /
@@ -487,7 +499,7 @@ function layout(data, options, fontFamily, ctx) {
             const week = weekLabel(d, weekMode, prevWeek, t);
             const date = parseDateIso(d && d.date_iso);
             if (date) prevWeek = isoWeek(date);
-            return renderDay(d, tf, showColour, useSymbol, labelStyle, t, locale, week);
+            return renderDay(d, tf, showColour, useSymbol, labelStyle, t, locale, week, feedPrefix);
           }).join("")}
         </div>
       </div>
@@ -529,15 +541,15 @@ export function allDayEndBadge(ev, dateIso, locale) {
   return `${month} ${date.getDate()}`;
 }
 
-export function renderDay(day, timeFormat, showColour, useSymbol, labelStyle, t, locale, week = "") {
+export function renderDay(day, timeFormat, showColour, useSymbol, labelStyle, t, locale, week = "", feedPrefix = false) {
   const events = Array.isArray(day.events) ? day.events : [];
   const allDay = events.filter((e) => e && e.all_day === true);
   const timed = events.filter((e) => e && e.all_day !== true);
   const allDayHtml = allDay.length
-    ? `<div class="all-day-stack">${allDay.map((e) => renderAllDay(e, showColour, day.date_iso, t, locale)).join("")}</div>`
+    ? `<div class="all-day-stack">${allDay.map((e) => renderAllDay(e, showColour, day.date_iso, t, locale, feedPrefix)).join("")}</div>`
     : "";
   const timedHtml = timed.length
-    ? `<div class="rail">${timed.map((e) => renderTimed(e, timeFormat, showColour, useSymbol, t, locale)).join("")}</div>`
+    ? `<div class="rail">${timed.map((e) => renderTimed(e, timeFormat, showColour, useSymbol, t, locale, feedPrefix)).join("")}</div>`
     : "";
   const empty = !allDay.length && !timed.length
     ? `<div class="day-empty">${escapeHtml(t("no_events_day", "(no events)"))}</div>`
@@ -562,8 +574,8 @@ export function renderDay(day, timeFormat, showColour, useSymbol, labelStyle, t,
   `;
 }
 
-function renderAllDay(ev, showColour, dateIso, t, locale) {
-  const title = escapeHtml(allDayTitle(ev, t));
+function renderAllDay(ev, showColour, dateIso, t, locale, feedPrefix = false) {
+  const title = escapeHtml(allDayTitle(ev, t, feedPrefix));
   const bg = showColour && ev.colour ? ev.colour : "var(--text-primary, #1B1A16)";
   const styleAttr = `style="background:${escapeAttr(bg)}"`;
   const endLabel = allDayEndBadge(ev, dateIso, locale);
@@ -579,8 +591,8 @@ function renderAllDay(ev, showColour, dateIso, t, locale) {
   `;
 }
 
-function renderTimed(ev, timeFormat, showColour, useSymbol, t, locale) {
-  const title = escapeHtml(ev.summary || t("untitled", "(untitled)"));
+function renderTimed(ev, timeFormat, showColour, useSymbol, t, locale, feedPrefix = false) {
+  const title = escapeHtml(eventTitle(ev, t, feedPrefix));
   const startChip = formatChipLabel(ev.start_local, timeFormat, locale);
   const endLabel = formatChipLabel(ev.end_local, timeFormat, locale);
   // v0.10.0: the server flags events that have already ended when
