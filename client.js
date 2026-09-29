@@ -322,11 +322,14 @@ function ensureContinuationHeaders(shadow) {
   const columnGap = parseFloat(cs.columnGap) || 0;
   const columnWidth = (daysRect.width - (columnCount - 1) * columnGap) / columnCount;
   const columnStep = columnWidth + columnGap;
-  const columnOf = (el) => {
+  // Unclamped index: content that overflows the last column flows into
+  // implicit columns past the clip, which measure as columnCount and up.
+  const rawColumnOf = (el) => {
     if (columnStep <= 0) return 0;
     const rect = el.getBoundingClientRect();
-    return Math.max(0, Math.min(columnCount - 1, Math.round((rect.left - daysRect.left) / columnStep)));
+    return Math.max(0, Math.round((rect.left - daysRect.left) / columnStep));
   };
+  const columnOf = (el) => Math.min(columnCount - 1, rawColumnOf(el));
   // Two-pass: measure every item's column FIRST, then insert. The
   // v0.4.3 single-pass version reflowed the column packer mid-loop
   // and caused stale readings.
@@ -362,12 +365,23 @@ function ensureContinuationHeaders(shadow) {
       });
     });
   });
-  plannedInsertions.forEach(({ header, item }) => {
+  const clones = plannedInsertions.map(({ header, item }) => {
     const clone = header.cloneNode(true);
     clone.classList.add("day-header--continuation");
     clone.removeAttribute("data-day-header");
     item.parentElement.insertBefore(clone, item);
+    return { clone, item };
   });
+  // v0.13.1: each breadcrumb forces a column break, which pushes later
+  // content along. On a list that already overflows, the row a
+  // breadcrumb introduces can land past the last column and get
+  // clipped, leaving the breadcrumb alone at the top of the final
+  // column. Drop those, last first, since removing one pulls later
+  // content back.
+  for (let i = clones.length - 1; i >= 0; i--) {
+    const { clone, item } = clones[i];
+    if (rawColumnOf(item) >= columnCount) clone.remove();
+  }
 }
 
 function isAutoColumns(options) {
@@ -400,6 +414,10 @@ function fitColumns(shadow) {
   if (!frame || !days) return;
   for (let n = 1; n <= 4; n++) {
     frame.setAttribute("data-cols", String(n));
+    // v0.13.1: breadcrumbs force a column break each, so they go in
+    // before the overflow check; a count that only fits without them
+    // would clip the end of the list once they're added.
+    ensureContinuationHeaders(shadow);
     // Force layout so scroll dimensions reflect the current column count.
     void days.offsetWidth;
     // At cols=1 there is no column-count set, so overflow shows up
@@ -409,15 +427,11 @@ function fitColumns(shadow) {
     // Check both so the loop stops as soon as the list actually fits.
     const overflowV = days.scrollHeight > days.clientHeight + 1;
     const overflowH = days.scrollWidth > days.clientWidth + 1;
-    if (!overflowV && !overflowH) {
-      ensureContinuationHeaders(shadow);
-      return;
-    }
+    if (!overflowV && !overflowH) return;
   }
   // Fell through the loop: even 4 columns overflow; leave at 4 and let
   // the container clip. Better to show as much as possible than to
   // silently drop back to 1.
-  ensureContinuationHeaders(shadow);
 }
 
 function layout(data, options, fontFamily, ctx) {
@@ -773,6 +787,12 @@ function styles(fontFamily) {
          a duplicate date on the panel. The children spans keep their
          DOM text but shrink to a single muted one-liner. */
       .day-header--continuation {
+        /* v0.13.1: JS inserts the breadcrumb right where a column broke,
+           but it's shorter than the row it precedes, so it used to fit
+           in the leftover space at the foot of the previous column and
+           paint under the day it continues (issue #16). Force the break
+           so it always opens the next column. */
+        break-before: column;
         margin-top: 0;
         gap: 0.3em;
         align-items: center;
