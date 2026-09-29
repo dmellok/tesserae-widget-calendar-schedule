@@ -307,6 +307,7 @@ function ensureContinuationHeaders(shadow) {
   // Strip any continuation headers from a previous pass so a resize
   // that changes the break points doesn't stack duplicates.
   days.querySelectorAll(".day-header--continuation").forEach((n) => n.remove());
+  days.querySelectorAll(".day-header--pushed").forEach((n) => n.classList.remove("day-header--pushed"));
   const sections = days.querySelectorAll(".day[data-day-id]");
   // v0.4.8: derive a column INDEX (0..N-1) from the days container's
   // width + column-count + column-gap, then compare indices instead
@@ -347,15 +348,38 @@ function ensureContinuationHeaders(shadow) {
     const eventBlocks = Array.from(section.children).filter(
       (n) => n !== header && n.getBoundingClientRect
     );
-    const headerColumn = columnOf(header);
+    let headerColumn = columnOf(header);
     let lastColumn = headerColumn;
+    let firstItem = true;
     for (const block of eventBlocks) {
       // ``all-day-stack`` and ``rail`` are wrappers; look inside them.
       const items = block.classList.contains("all-day-stack") || block.classList.contains("rail")
         ? Array.from(block.children)
         : [block];
       for (const item of items) {
-        const raw = rawColumnOf(item);
+        let raw = rawColumnOf(item);
+        // v0.13.3: a header left alone at the foot of a column, with
+        // the day's first row in the next one (issue #16). CSS
+        // break-after: avoid prevents most of these, but it gives way
+        // when Chromium finds no better break. Move the header to the
+        // next column instead of labelling the split with a breadcrumb.
+        if (firstItem) {
+          firstItem = false;
+          const headerRaw = rawColumnOf(header);
+          if (raw > headerRaw) {
+            header.classList.add("day-header--pushed");
+            if (rawColumnOf(header) === headerRaw) {
+              // Already at the top of its column: the row is taller
+              // than a column, so the break can't be avoided.
+              header.classList.remove("day-header--pushed");
+            } else {
+              if (rawColumnOf(header) >= columnCount) return;
+              headerColumn = columnOf(header);
+              lastColumn = headerColumn;
+              raw = rawColumnOf(item);
+            }
+          }
+        }
         if (raw >= columnCount) return;
         const col = Math.min(columnCount - 1, raw);
         // v0.4.10: strictly-forward guard. Continuation only fires
@@ -788,6 +812,11 @@ function styles(fontFamily) {
          down clone of the real header) so the eye doesn't read it as
          a duplicate date on the panel. The children spans keep their
          DOM text but shrink to a single muted one-liner. */
+      /* v0.13.3: keep a day header with its first row (issue #16). JS
+         moves the header along with day-header--pushed when Chromium
+         breaks after it anyway. */
+      .day-header { break-after: avoid; }
+      .day-header--pushed { break-before: column; }
       .day-header--continuation {
         /* v0.13.1: JS inserts the breadcrumb right where a column broke,
            but it's shorter than the row it precedes, so it used to fit
