@@ -330,26 +330,34 @@ function ensureContinuationHeaders(shadow) {
     return Math.max(0, Math.round((rect.left - daysRect.left) / columnStep));
   };
   const columnOf = (el) => Math.min(columnCount - 1, rawColumnOf(el));
-  // Two-pass: measure every item's column FIRST, then insert. The
-  // v0.4.3 single-pass version reflowed the column packer mid-loop
-  // and caused stale readings.
-  const plannedInsertions = [];
-  sections.forEach((section) => {
+  // v0.13.2: measure and insert in one walk, in document order. Each
+  // breadcrumb takes height at the top of its column, which moves every
+  // later column break. 0.13.1 measured all breaks up front and then
+  // inserted, so breaks after the first breadcrumb were read from a
+  // layout that no longer existed: a day that only split once the
+  // earlier breadcrumbs were in got none (issue #16, last column).
+  // Reading after each insertion is safe because a breadcrumb only
+  // moves content that comes after it.
+  const sectionList = Array.from(sections);
+  for (const section of sectionList) {
     const header = section.querySelector("[data-day-header]");
-    if (!header) return;
+    if (!header) continue;
+    // Past the last column is clipped; nothing there needs a label.
+    if (rawColumnOf(header) >= columnCount) return;
     const eventBlocks = Array.from(section.children).filter(
       (n) => n !== header && n.getBoundingClientRect
     );
-    if (eventBlocks.length === 0) return;
     const headerColumn = columnOf(header);
     let lastColumn = headerColumn;
-    eventBlocks.forEach((block) => {
+    for (const block of eventBlocks) {
       // ``all-day-stack`` and ``rail`` are wrappers; look inside them.
       const items = block.classList.contains("all-day-stack") || block.classList.contains("rail")
         ? Array.from(block.children)
         : [block];
-      items.forEach((item) => {
-        const col = columnOf(item);
+      for (const item of items) {
+        const raw = rawColumnOf(item);
+        if (raw >= columnCount) return;
+        const col = Math.min(columnCount - 1, raw);
         // v0.4.10: strictly-forward guard. Continuation only fires
         // when the item lands in a column BEYOND both the header
         // and every previously-seen item. Prevents a spurious
@@ -357,30 +365,24 @@ function ensureContinuationHeaders(shadow) {
         // if columnOf mis-measures under dense packing or on wide
         // panels where sub-pixel offsets don't round cleanly.
         if (col > headerColumn && col > lastColumn) {
-          plannedInsertions.push({ header, item });
-          lastColumn = col;
+          const clone = header.cloneNode(true);
+          clone.classList.add("day-header--continuation");
+          clone.removeAttribute("data-day-header");
+          item.parentElement.insertBefore(clone, item);
+          // v0.13.1: on a list that already overflows, the breadcrumb
+          // can push its row past the last column, leaving it alone at
+          // the top of the final column. Drop it; everything after is
+          // clipped too.
+          if (rawColumnOf(item) >= columnCount) {
+            clone.remove();
+            return;
+          }
+          lastColumn = columnOf(item);
         } else if (col !== lastColumn) {
           lastColumn = col;
         }
-      });
-    });
-  });
-  const clones = plannedInsertions.map(({ header, item }) => {
-    const clone = header.cloneNode(true);
-    clone.classList.add("day-header--continuation");
-    clone.removeAttribute("data-day-header");
-    item.parentElement.insertBefore(clone, item);
-    return { clone, item };
-  });
-  // v0.13.1: each breadcrumb forces a column break, which pushes later
-  // content along. On a list that already overflows, the row a
-  // breadcrumb introduces can land past the last column and get
-  // clipped, leaving the breadcrumb alone at the top of the final
-  // column. Drop those, last first, since removing one pulls later
-  // content back.
-  for (let i = clones.length - 1; i >= 0; i--) {
-    const { clone, item } = clones[i];
-    if (rawColumnOf(item) >= columnCount) clone.remove();
+      }
+    }
   }
 }
 
