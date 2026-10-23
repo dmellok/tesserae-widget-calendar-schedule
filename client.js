@@ -549,7 +549,7 @@ function layout(data, options, fontFamily, ctx) {
 
 function renderTitle(truncated, t) {
   const truncatedPill = truncated
-    ? `<span class="title-pill" title="${escapeAttr(t("capped_help", "More events were available; raise \"Max events across the whole agenda\" to show them."))}">${escapeHtml(t("capped", "capped"))}</span>`
+    ? `<span class="title-pill" title="${escapeAttr(t("capped_help", "More events were available; raise \"How many events\" to show them."))}">${escapeHtml(t("capped", "capped"))}</span>`
     : "";
   return `
     <div class="title">

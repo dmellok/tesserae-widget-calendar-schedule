@@ -6,7 +6,7 @@
   "no_upcoming": "Aucun événement à venir.",
   "untitled": "(sans titre)",
   "capped": "limité",
-  "capped_help": "D'autres événements étaient disponibles ; augmentez « Max events across the whole agenda » pour les afficher.",
+  "capped_help": "D'autres événements étaient disponibles ; augmentez « How many events » pour les afficher.",
   "continued": "suite",
   "week_n": "S{n}"
 }

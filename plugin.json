@@ -1,8 +1,13 @@
 {
   "tesserae_compat": "1.x",
   "name": "Calendar, Schedule",
-  "version": "0.13.3",
-  "locales": ["en", "de", "fr", "sv"],
+  "version": "0.13.4",
+  "locales": [
+    "en",
+    "de",
+    "fr",
+    "sv"
+  ],
   "kind": "widget",
   "description": "Timeline-rail agenda view. Lists upcoming events grouped by day, with a thin ink rail connecting per-event nodes and a coloured start-time chip carrying the feed accent. Titles wrap freely so the widget stays legible from 1 up to 4 narrow columns on wide e-ink panels. Pulls from the same calendar_core feeds as the other calendar_* widgets.",
   "icon": "ph-list-bullets",
@@ -15,6 +20,13 @@
     ]
   },
   "cell_options": [
+    {
+      "name": "feeds_filter",
+      "type": "string",
+      "label": "Feeds",
+      "default": "",
+      "help": "Feed IDs from Calendar Feeds, separated by commas, to show only those. Leave blank for every enabled feed."
+    },
     {
       "name": "days_ahead",
       "type": "select",
@@ -52,121 +64,42 @@
       ]
     },
     {
-      "name": "feeds_filter",
-      "type": "string",
-      "label": "Feed IDs (comma-separated; blank = all enabled)",
-      "default": "",
-      "help": "Restrict to specific feeds. Leave blank to include every enabled feed configured in calendar_core."
-    },
-    {
-      "name": "hide_keywords",
-      "type": "string",
-      "label": "Hide events matching (comma-separated)",
-      "default": "",
-      "help": "Drop events whose title or location contains any of these words. Case-insensitive, matches part of a word, so \"lunch\" hides \"Lunch with Poppy\". Handy for a recurring event you don't need on the panel."
-    },
-    {
-      "name": "only_keywords",
-      "type": "string",
-      "label": "Only show events matching (comma-separated)",
-      "default": "",
-      "help": "Leave blank for everything. When set, only events whose title or location contains one of these words are shown; any Hide words still apply on top."
-    },
-    {
-      "name": "skip_empty_days",
-      "type": "boolean",
-      "label": "Skip days with no events",
-      "default": true
-    },
-    {
-      "name": "always_show_today",
-      "type": "boolean",
-      "label": "Always show today",
-      "default": false,
-      "help": "Keeps today's column in the agenda even when it has no events, so the panel always shows the current date. Only matters when 'Skip days with no events' is on."
-    },
-    {
-      "name": "keep_past_today",
-      "type": "boolean",
-      "label": "Keep today's past events",
-      "default": false,
-      "help": "Keeps today's events on the panel after they have ended, drawn in muted ink, so the day reads as a whole schedule instead of draining away through the afternoon. Off drops each event once its end time passes. Earlier days are never shown either way."
-    },
-    {
-      "name": "max_events_per_day",
-      "type": "number",
-      "label": "Max events per day (0 = all)",
-      "default": 0
+      "name": "columns",
+      "type": "select",
+      "label": "Columns",
+      "default": "auto",
+      "help": "Flow the agenda across multiple columns so a longer window (say two weeks) fits in a half-height cell without shrinking every row. Auto grows columns 1 up to 4 until the whole list fits. Days stay atomic (never split across columns), and column-fill packs by real content height, not by day count.",
+      "choices": [
+        {
+          "value": "auto",
+          "label": "Auto (grow until list fits)"
+        },
+        {
+          "value": "1",
+          "label": "1 column"
+        },
+        {
+          "value": "2",
+          "label": "2 columns (good on 1200-wide portrait)"
+        },
+        {
+          "value": "3",
+          "label": "3 columns (good on 1600+ wide landscape)"
+        },
+        {
+          "value": "4",
+          "label": "4 columns (wide panels only)"
+        }
+      ]
     },
     {
       "name": "max_events_total",
       "type": "number",
-      "label": "Max events across the whole agenda (0 = no cap)",
+      "label": "How many events",
       "default": 0,
       "min": 0,
       "max": 200,
-      "help": "Caps the total events shown across all days, after sorting chronologically. Stops a single busy day shrinking every row's text to fit. Applied after the per-day cap."
-    },
-    {
-      "name": "columns",
-      "type": "select",
-      "label": "Layout columns",
-      "default": "auto",
-      "help": "Flow the agenda across multiple columns so a longer window (say two weeks) fits in a half-height cell without shrinking every row. Auto grows columns 1 up to 4 until the whole list fits. Days stay atomic (never split across columns), and column-fill packs by real content height, not by day count.",
-      "choices": [
-        {"value": "auto", "label": "Auto (grow until list fits)"},
-        {"value": "1", "label": "1 column"},
-        {"value": "2", "label": "2 columns (good on 1200-wide portrait)"},
-        {"value": "3", "label": "3 columns (good on 1600+ wide landscape)"},
-        {"value": "4", "label": "4 columns (wide panels only)"}
-      ]
-    },
-    {
-      "name": "show_title",
-      "type": "boolean",
-      "label": "Show widget title",
-      "default": true,
-      "help": "Renders a 'Schedule' header row at the top so the cell matches the Spectra widget chrome. Off uses the entire cell for the agenda."
-    },
-    {
-      "name": "show_location",
-      "type": "boolean",
-      "label": "Show event locations",
-      "default": true
-    },
-    {
-      "name": "location_style",
-      "type": "select",
-      "label": "Location style",
-      "default": "full",
-      "help": "How much of the location fits under each event. Full wraps the whole string. One line keeps it to a single row and trims the end with an ellipsis. Before the first comma shows only the leading part, so \"Cafe Rosa, 12 High St, Springfield\" reads \"Cafe Rosa\", either wrapping or clipped to one row; handy on small panels where addresses eat the cell.",
-      "choices": [
-        {"value": "full", "label": "Full (wraps)"},
-        {"value": "line", "label": "One line (trimmed with an ellipsis)"},
-        {"value": "short_wrap", "label": "Before the first comma (wraps)"},
-        {"value": "short", "label": "Before the first comma (trimmed with an ellipsis)"}
-      ]
-    },
-    {
-      "name": "show_dot_color",
-      "type": "boolean",
-      "label": "Show per-feed colour dot",
-      "default": true,
-      "help": "Off makes the layout pure typography; useful on 1-bit panels."
-    },
-    {
-      "name": "use_symbol_dot",
-      "type": "boolean",
-      "label": "Use symbol dots",
-      "default": false,
-      "help": "Replaces the round bullet with a shape picked from the feed colour, so feeds stay apart on 1-bit panels."
-    },
-    {
-      "name": "feed_name_prefix",
-      "type": "boolean",
-      "label": "Prefix titles with the feed name",
-      "default": false,
-      "help": "Writes the feed's name from Calendar Feeds in front of each event title, so \"Standup\" reads \"Work: Standup\". Tells calendars apart in words on 1-bit panels where colour can't."
+      "help": "The most events across the whole agenda, counted in date order after the per-day cap. 0 shows them all. Stops one busy day shrinking every row's text to fit."
     },
     {
       "name": "time_format",
@@ -185,15 +118,177 @@
       ]
     },
     {
+      "name": "hide_keywords",
+      "type": "string",
+      "label": "Hide events matching",
+      "default": "",
+      "help": "Words separated by commas. Drops events whose title or location contains any of them. Case-insensitive, matches part of a word, so \"lunch\" hides \"Lunch with Poppy\". Handy for a recurring event you don't need on the panel.",
+      "advanced": true
+    },
+    {
+      "name": "only_keywords",
+      "type": "string",
+      "label": "Only show events matching",
+      "default": "",
+      "help": "Words separated by commas. Leave blank for everything. When set, only events whose title or location contains one of these words are shown; any Hide words still apply on top.",
+      "advanced": true
+    },
+    {
+      "name": "skip_empty_days",
+      "type": "boolean",
+      "label": "Skip days with no events",
+      "default": true,
+      "advanced": true
+    },
+    {
+      "name": "always_show_today",
+      "type": "boolean",
+      "label": "Always show today",
+      "default": false,
+      "help": "Keeps today's column in the agenda even when it has no events, so the panel always shows the current date.",
+      "show_if": {
+        "skip_empty_days": true
+      },
+      "advanced": true
+    },
+    {
+      "name": "keep_past_today",
+      "type": "boolean",
+      "label": "Keep today's past events",
+      "default": false,
+      "help": "Keeps today's events on the panel after they have ended, drawn in muted ink, so the day reads as a whole schedule instead of draining away through the afternoon. Off drops each event once its end time passes. Earlier days are never shown either way.",
+      "advanced": true
+    },
+    {
+      "name": "max_events_per_day",
+      "type": "number",
+      "label": "How many events per day",
+      "default": 0,
+      "help": "0 shows every event of the day.",
+      "advanced": true
+    },
+    {
+      "name": "show_title",
+      "type": "boolean",
+      "label": "Title",
+      "default": true,
+      "help": "Renders a 'Schedule' header row at the top so the cell matches the Spectra widget chrome. Off uses the entire cell for the agenda.",
+      "advanced": true
+    },
+    {
+      "name": "title_scale",
+      "type": "slider",
+      "label": "Title size",
+      "default": 1.0,
+      "min": 0.01,
+      "max": 10.0,
+      "step": 0.05,
+      "unit": "×",
+      "help": "Multiplier on the 'Schedule' header row at the top of the widget.",
+      "show_if": {
+        "show_title": true
+      },
+      "advanced": true
+    },
+    {
+      "name": "show_location",
+      "type": "boolean",
+      "label": "Locations",
+      "default": true,
+      "help": "The lighter location text under each event title.",
+      "advanced": true
+    },
+    {
+      "name": "location_style",
+      "type": "select",
+      "label": "Location style",
+      "default": "full",
+      "help": "How much of the location fits under each event. Full wraps the whole string. One line keeps it to a single row and trims the end with an ellipsis. Before the first comma shows only the leading part, so \"Cafe Rosa, 12 High St, Springfield\" reads \"Cafe Rosa\", either wrapping or clipped to one row; handy on small panels where addresses eat the cell.",
+      "choices": [
+        {
+          "value": "full",
+          "label": "Full (wraps)"
+        },
+        {
+          "value": "line",
+          "label": "One line (trimmed with an ellipsis)"
+        },
+        {
+          "value": "short_wrap",
+          "label": "Before the first comma (wraps)"
+        },
+        {
+          "value": "short",
+          "label": "Before the first comma (trimmed with an ellipsis)"
+        }
+      ],
+      "show_if": {
+        "show_location": true
+      },
+      "advanced": true
+    },
+    {
+      "name": "event_location_scale",
+      "type": "slider",
+      "label": "Location size",
+      "default": 0.9,
+      "min": 0.01,
+      "max": 10.0,
+      "step": 0.05,
+      "unit": "×",
+      "help": "Multiplier on the location string beneath each event title.",
+      "show_if": {
+        "show_location": true
+      },
+      "advanced": true
+    },
+    {
+      "name": "show_dot_color",
+      "type": "boolean",
+      "label": "Feed colour",
+      "default": true,
+      "help": "The feed's colour on each start-time chip and all-day bar. Off makes the layout pure typography; useful on 1-bit panels.",
+      "advanced": true
+    },
+    {
+      "name": "use_symbol_dot",
+      "type": "boolean",
+      "label": "Use symbol dots",
+      "default": false,
+      "help": "Replaces the round bullet with a shape picked from the feed colour, so feeds stay apart on 1-bit panels.",
+      "show_if": {
+        "show_dot_color": true
+      },
+      "advanced": true
+    },
+    {
+      "name": "feed_name_prefix",
+      "type": "boolean",
+      "label": "Feed name before the title",
+      "default": false,
+      "help": "Writes the feed's name from Calendar Feeds in front of each event title, so \"Standup\" reads \"Work: Standup\". Tells calendars apart in words on 1-bit panels where colour can't.",
+      "advanced": true
+    },
+    {
       "name": "date_label_style",
       "type": "select",
-      "label": "Weekday / month label style",
+      "label": "Weekday and month labels",
       "default": "short",
       "choices": [
-        {"value": "full", "label": "Full word (Monday, January)"},
-        {"value": "short", "label": "Short (MON, JAN)"},
-        {"value": "minimal", "label": "Minimal (M, JA)"}
-      ]
+        {
+          "value": "full",
+          "label": "Full word (Monday, January)"
+        },
+        {
+          "value": "short",
+          "label": "Short (MON, JAN)"
+        },
+        {
+          "value": "minimal",
+          "label": "Minimal (M, JA)"
+        }
+      ],
+      "advanced": true
     },
     {
       "name": "week_number",
@@ -202,21 +297,20 @@
       "default": "off",
       "help": "Adds the ISO 8601 week number (W38) to the day header beside the month. First day of each week marks the first day shown from each week, so it appears once per week even when Monday is skipped for having no events.",
       "choices": [
-        {"value": "off", "label": "Off"},
-        {"value": "week_start", "label": "First day of each week"},
-        {"value": "every_day", "label": "Every day"}
-      ]
-    },
-    {
-      "name": "title_scale",
-      "type": "slider",
-      "label": "Dashboard title size",
-      "default": 1.0,
-      "min": 0.01,
-      "max": 10.0,
-      "step": 0.05,
-      "unit": "×",
-      "help": "Multiplier on the 'Schedule' header row at the top of the widget."
+        {
+          "value": "off",
+          "label": "Off"
+        },
+        {
+          "value": "week_start",
+          "label": "First day of each week"
+        },
+        {
+          "value": "every_day",
+          "label": "Every day"
+        }
+      ],
+      "advanced": true
     },
     {
       "name": "header_scale",
@@ -227,18 +321,20 @@
       "max": 10.0,
       "step": 0.05,
       "unit": "×",
-      "help": "Multiplier on each day's date/weekday/month header text. Scales the whole header together, so the labels keep their proportion to the date number."
+      "help": "Multiplier on each day's date/weekday/month header text. Scales the whole header together, so the labels keep their proportion to the date number.",
+      "advanced": true
     },
     {
       "name": "header_label_scale",
       "type": "slider",
-      "label": "Day header label size",
+      "label": "Day label size",
       "default": 1.0,
       "min": 0.01,
       "max": 10.0,
       "step": 0.05,
       "unit": "×",
-      "help": "Multiplier on the weekday, month and week-number labels only, leaving the big date number where it is. Raise it when the labels read too small beside the number; 2.0 puts the weekday at roughly the proportion the continued-day breadcrumb uses."
+      "help": "Multiplier on the weekday, month and week-number labels only, leaving the big date number where it is. Raise it when the labels read too small beside the number; 2.0 puts the weekday at roughly the proportion the continued-day breadcrumb uses.",
+      "advanced": true
     },
     {
       "name": "event_title_scale",
@@ -249,7 +345,8 @@
       "max": 10.0,
       "step": 0.05,
       "unit": "×",
-      "help": "Multiplier on the event title font size. 1.0 = default. Raise for more legible titles at the cost of visible event count."
+      "help": "Multiplier on the event title font size. 1.0 = default. Raise for more legible titles at the cost of visible event count.",
+      "advanced": true
     },
     {
       "name": "event_time_scale",
@@ -260,29 +357,20 @@
       "max": 10.0,
       "step": 0.05,
       "unit": "×",
-      "help": "Multiplier on the start-time chip font size."
-    },
-    {
-      "name": "event_location_scale",
-      "type": "slider",
-      "label": "Event location size",
-      "default": 0.9,
-      "min": 0.01,
-      "max": 10.0,
-      "step": 0.05,
-      "unit": "×",
-      "help": "Multiplier on the location string beneath each event title."
+      "help": "Multiplier on the start-time chip font size.",
+      "advanced": true
     },
     {
       "name": "day_row_padding_em",
       "type": "slider",
-      "label": "Day row spacing",
+      "label": "Day spacing",
       "default": 0.5,
       "min": 0.0,
       "max": 3.0,
       "step": 0.05,
       "unit": "em",
-      "help": "Vertical padding above + below each day block, in em units so it scales with the auto-fit font size. Lower packs more events on the panel."
+      "help": "Vertical padding above + below each day block, in em units so it scales with the auto-fit font size. Lower packs more events on the panel.",
+      "advanced": true
     }
   ],
   "render": {

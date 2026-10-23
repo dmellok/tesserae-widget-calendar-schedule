@@ -936,3 +936,37 @@ def test_feed_symbol_is_forwarded_and_kept_out_of_the_summary() -> None:
         )
     rows = [(r["summary"], r["symbol"]) for d in out["days"] for r in d["events"]]
     assert rows == [("Standup", "💼"), ("Dentist", "")]
+
+
+def test_options_panel_is_short_and_keeps_saved_cells() -> None:
+    """Five options up front, the rest nested or under More options, last;
+    no option, choice value or default a saved cell holds has changed."""
+    import json
+
+    root = Path(__file__).resolve().parent.parent
+    m = json.loads((root / "plugin.json").read_text(encoding="utf-8"))
+    opts = m["cell_options"]
+    by = {o["name"]: o for o in opts}
+    always = [o["name"] for o in opts if not o.get("show_if") and not o.get("advanced")]
+    assert always == [
+        "feeds_filter",
+        "days_ahead",
+        "columns",
+        "max_events_total",
+        "time_format",
+    ]
+    first_adv = next(i for i, o in enumerate(opts) if o.get("advanced"))
+    assert all(o.get("advanced") for o in opts[first_adv:])
+    for o in opts:
+        for key in o.get("show_if") or {}:
+            assert key in by, f"{o['name']} shows on unknown option {key}"
+        assert ":" not in o["label"] and "(" not in o["label"], o["label"]
+    old = json.loads(
+        (root / "tests" / "options_v0_13_3.json").read_text(encoding="utf-8")
+    )
+    assert set(old) == set(by)
+    for name, was in old.items():
+        o = by[name]
+        assert o["type"] == was["type"] and o.get("default") == was["default"], name
+        assert [c["value"] for c in o.get("choices", [])] == was["values"], name
+    assert "—" not in json.dumps(m, ensure_ascii=False)

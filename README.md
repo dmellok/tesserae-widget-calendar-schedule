@@ -24,33 +24,42 @@ Make sure you have at least one feed configured in **Widgets → Calendar Feeds*
 
 ## Cell options
 
-- **Days to show**: today only, 3 days, 5 days, a week, or two weeks.
-- **Feed IDs**: restrict to specific feeds (comma-separated). Blank includes every enabled feed.
+Five options sit up front; the rest are under **More options** (Tesserae 0.473 and later; an older Tesserae shows them all in the same order).
+
+- **Feeds**: restrict to specific feeds (feed IDs, comma-separated). Blank includes every enabled feed.
+- **Days to show**: today only, 3 days, 5 days, a week, two weeks, a month, or fill the cell.
+- **Columns**: flow the agenda across 1 to 4 vertical columns so a longer window (say two weeks) fits in a half-height cell without shrinking every row. Defaults to **Auto**, which starts at 1 and grows the column count only until the whole list fits; pick a fixed count (1-4) if you want to lock the layout. Days stay atomic (never split across columns); the browser packs by real content height, not day count.
+- **How many events**: caps the events shown across the whole agenda (0 = no cap), so one busy day doesn't shrink every row's text to fit.
+- **Time format**: 12-hour or 24-hour.
+
+Under **More options**:
+
 - **Hide events matching**: comma-separated words; any event whose title or location contains one is dropped. Case-insensitive and matches part of a word, so `lunch` hides "Lunch with Poppy". Useful for a recurring event you don't need on the panel.
 - **Only show events matching**: the inverse, for when it's easier to say what you want than what you don't. Blank shows everything. Hide words still apply on top, so an event has to match this list and avoid that one.
 
-  Both lists match against what the panel actually shows: with **Show event locations** off, locations aren't matched either, so a filter can't drop events for reasons you can't see on the screen.
-- **Show event locations**: toggles the lighter-grey location text after the title.
-- **Location style**: how much of the location fits under each event. **Full** wraps the whole string. **One line** keeps it to a single row and trims the end with an ellipsis. **Before the first comma** shows only the leading part, so "Cafe Rosa, 12 High St, Springfield" reads "Cafe Rosa" (a line break counts as a comma, for calendars that put the address on its own line), in a wrapping or a one-line, ellipsis-trimmed variant. Useful on small panels where addresses eat the cell. The keyword filters match the shortened text, so they still only act on what the panel shows.
-- **Week number**: adds the ISO 8601 week number (`W38`) to the day header beside the month. **First day of each week** marks the first day shown from each week, so it appears once per week even when Monday is skipped for having no events; **Every day** repeats it on every header. Off by default. The label follows the panel language (`KW 38`, `S38`, `V38`).
-- **Show per-feed colour dot**: turn off for pure typography (useful on 1-bit panels).
-- **Use symbol dots**: replaces the round bullet on each timed event with a shape picked from the feed colour, so two calendars stay apart once the panel has quantised both to the same ink. Off by default. A symbol set on the feed itself (below) always wins over these.
-- **Prefix titles with the feed name**: writes the feed's name from Calendar Feeds in front of each event title, so "Standup" reads "Work: Standup". Off by default. Tells calendars apart in words on 1-bit panels where colour can't; a feed symbol, if set, still comes first. The keyword filters match the bare title, not the prefix.
-- **Time format**: Auto, 24-hour, or 12-hour.
+  Both lists match against what the panel actually shows: with **Locations** off, locations aren't matched either, so a filter can't drop events for reasons you can't see on the screen.
 - **Skip days with no events**: when off, every day in the window renders even if empty.
-- **Always show today**: keeps today's column even when it has no events, so the current date is always the first column. Only matters with **Skip days with no events** on.
+- **Always show today**: keeps today's column even when it has no events, so the current date is always the first column. Shown while **Skip days with no events** is on.
 - **Keep today's past events**: keeps today's events on the panel after they have ended, drawn in muted ink without the feed colour, so the day reads as a whole schedule rather than draining away through the afternoon. Off (the default) drops each timed event once its end time passes. Events from earlier days are never shown either way.
-- **Max events per day**: cap each day's row count (0 = show all).
-- **Layout columns**: flow the agenda across 1 to 4 vertical columns so a longer window (say two weeks) fits in a half-height cell without shrinking every row. Defaults to **Auto**, which starts at 1 and grows the column count only until the whole list fits; pick a fixed count (1-4) if you want to lock the layout. Days stay atomic (never split across columns); the browser packs by real content height, not day count.
-- **Day header size** and **Day header label size**: the first multiplies the whole day header (date number, weekday, month, week number) together, so the parts keep their proportions. The second scales only the weekday / month / week labels and leaves the date number alone, which is how you fix labels that read too small beside the number. At `2.0` the weekday sits at roughly the proportion the continued-day breadcrumb uses. Both default to `1.0`.
+- **How many events per day**: cap each day's row count (0 = show all).
+- **Title** and **Title size**: the "Schedule" header row at the top, and its size.
+- **Locations**: toggles the lighter-grey location text after the title. **Location style** and **Location size** show while it is on.
+- **Location style**: how much of the location fits under each event. **Full** wraps the whole string. **One line** keeps it to a single row and trims the end with an ellipsis. **Before the first comma** shows only the leading part, so "Cafe Rosa, 12 High St, Springfield" reads "Cafe Rosa" (a line break counts as a comma, for calendars that put the address on its own line), in a wrapping or a one-line, ellipsis-trimmed variant. Useful on small panels where addresses eat the cell. The keyword filters match the shortened text, so they still only act on what the panel shows.
+- **Feed colour**: turn off for pure typography (useful on 1-bit panels).
+- **Use symbol dots** (while **Feed colour** is on): replaces the round bullet on each timed event with a shape picked from the feed colour, so two calendars stay apart once the panel has quantised both to the same ink. Off by default. A symbol set on the feed itself (below) always wins over these.
+- **Feed name before the title**: writes the feed's name from Calendar Feeds in front of each event title, so "Standup" reads "Work: Standup". Off by default. Tells calendars apart in words on 1-bit panels where colour can't; a feed symbol, if set, still comes first. The keyword filters match the bare title, not the prefix.
+- **Weekday and month labels**: full words, short (MON, JAN) or minimal.
+- **Week number**: adds the ISO 8601 week number (`W38`) to the day header beside the month. **First day of each week** marks the first day shown from each week, so it appears once per week even when Monday is skipped for having no events; **Every day** repeats it on every header. Off by default. The label follows the panel language (`KW 38`, `S38`, `V38`).
+- **Day header size** and **Day label size**: the first multiplies the whole day header (date number, weekday, month, week number) together, so the parts keep their proportions. The second scales only the weekday / month / week labels and leaves the date number alone, which is how you fix labels that read too small beside the number. At `2.0` the weekday sits at roughly the proportion the continued-day breadcrumb uses. Both default to `1.0`.
+- **Event title size**, **Event time size** and **Day spacing**: multipliers on the event text and the padding around each day block.
 
-Feed colour is carried by the start-time chip and the all-day bar. Turning off **Show per-feed colour dot** replaces the chip fill with ink for 1-bit panels.
+Feed colour is carried by the start-time chip and the all-day bar. Turning off **Feed colour** replaces the chip fill with ink for 1-bit panels.
 
 **Use symbol dots** sorts each feed colour into one of 19 buckets (3 greyscale levels, then 8 hue slices each split by saturation) and draws that bucket's shape. Hollow shapes are the washed-out half of each hue, solid the vivid half.
 
 Two colours in the same bucket get the same shape. The slices are 45 degrees wide, so the first one covers red through orange to yellow: on the stock Google Calendar palette that puts Tomato, Tangerine and Banana together, and the 11 stock colours resolve to 8 distinct shapes. If you're relying on this, set feed colours that sit well apart on the wheel rather than picking three warm ones.
 
-All-day events render as a filled bar rather than a rail node, so they aren't affected. Turning off **Show per-feed colour dot** drops the colour before the client sees it, which collapses every symbol back to the plain bullet.
+All-day events render as a filled bar rather than a rail node, so they aren't affected. Turning off **Feed colour** drops the colour before the client sees it, which collapses every symbol back to the plain bullet.
 
 ### Per-feed symbols
 

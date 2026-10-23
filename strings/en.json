@@ -6,7 +6,7 @@
   "no_upcoming": "No upcoming events.",
   "untitled": "(untitled)",
   "capped": "capped",
-  "capped_help": "More events were available; raise \"Max events across the whole agenda\" to show them.",
+  "capped_help": "More events were available; raise \"How many events\" to show them.",
   "continued": "cont.",
   "week_n": "W{n}"
 }

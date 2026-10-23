@@ -1,0 +1,162 @@
+{
+  "days_ahead": {
+    "type": "select",
+    "default": "5",
+    "values": [
+      "1",
+      "3",
+      "5",
+      "7",
+      "14",
+      "30",
+      "fill"
+    ]
+  },
+  "feeds_filter": {
+    "type": "string",
+    "default": "",
+    "values": []
+  },
+  "hide_keywords": {
+    "type": "string",
+    "default": "",
+    "values": []
+  },
+  "only_keywords": {
+    "type": "string",
+    "default": "",
+    "values": []
+  },
+  "skip_empty_days": {
+    "type": "boolean",
+    "default": true,
+    "values": []
+  },
+  "always_show_today": {
+    "type": "boolean",
+    "default": false,
+    "values": []
+  },
+  "keep_past_today": {
+    "type": "boolean",
+    "default": false,
+    "values": []
+  },
+  "max_events_per_day": {
+    "type": "number",
+    "default": 0,
+    "values": []
+  },
+  "max_events_total": {
+    "type": "number",
+    "default": 0,
+    "values": []
+  },
+  "columns": {
+    "type": "select",
+    "default": "auto",
+    "values": [
+      "auto",
+      "1",
+      "2",
+      "3",
+      "4"
+    ]
+  },
+  "show_title": {
+    "type": "boolean",
+    "default": true,
+    "values": []
+  },
+  "show_location": {
+    "type": "boolean",
+    "default": true,
+    "values": []
+  },
+  "location_style": {
+    "type": "select",
+    "default": "full",
+    "values": [
+      "full",
+      "line",
+      "short_wrap",
+      "short"
+    ]
+  },
+  "show_dot_color": {
+    "type": "boolean",
+    "default": true,
+    "values": []
+  },
+  "use_symbol_dot": {
+    "type": "boolean",
+    "default": false,
+    "values": []
+  },
+  "feed_name_prefix": {
+    "type": "boolean",
+    "default": false,
+    "values": []
+  },
+  "time_format": {
+    "type": "select",
+    "default": "12h",
+    "values": [
+      "12h",
+      "24h"
+    ]
+  },
+  "date_label_style": {
+    "type": "select",
+    "default": "short",
+    "values": [
+      "full",
+      "short",
+      "minimal"
+    ]
+  },
+  "week_number": {
+    "type": "select",
+    "default": "off",
+    "values": [
+      "off",
+      "week_start",
+      "every_day"
+    ]
+  },
+  "title_scale": {
+    "type": "slider",
+    "default": 1.0,
+    "values": []
+  },
+  "header_scale": {
+    "type": "slider",
+    "default": 1.0,
+    "values": []
+  },
+  "header_label_scale": {
+    "type": "slider",
+    "default": 1.0,
+    "values": []
+  },
+  "event_title_scale": {
+    "type": "slider",
+    "default": 1.0,
+    "values": []
+  },
+  "event_time_scale": {
+    "type": "slider",
+    "default": 1.0,
+    "values": []
+  },
+  "event_location_scale": {
+    "type": "slider",
+    "default": 0.9,
+    "values": []
+  },
+  "day_row_padding_em": {
+    "type": "slider",
+    "default": 0.5,
+    "values": []
+  }
+}
